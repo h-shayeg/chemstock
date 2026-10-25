@@ -1,11 +1,31 @@
+x-app-base: &app-base
+  build:
+    context: .
+    args:
+      PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+  image: chemstock-api
+  environment:
+    POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    POSTGRES_HOST: db
+    POSTGRES_PORT: "5432"
+
 services:
+  migrate:
+    <<: *app-base
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+
   api:
-    build:
-      context: .
-      args:
-        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+    <<: *app-base
     ports:
       - "${API_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s

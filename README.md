@@ -43,7 +43,7 @@ tests/           pytest tests
 - [x] Health check endpoint
 - [x] Docker and Docker Compose
 - [x] CI with GitHub Actions
-- [ ] PostgreSQL, SQLAlchemy and Alembic migrations
+- [x] PostgreSQL, SQLAlchemy and Alembic migrations
 - [ ] Chemical inventory CRUD (name, CAS number, quantity, location, expiry date)
 - [ ] Authentication and roles
 - [ ] PubChem integration for hazard (GHS) data, with caching
