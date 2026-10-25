@@ -71,3 +71,93 @@ def test_list_rejects_out_of_range_limit(client: TestClient, limit: int) -> None
     response = client.get("/chemicals", params={"limit": limit})
 
     assert response.status_code == 422
+
+
+def _create(client: TestClient, payload: dict[str, str]) -> dict[str, object]:
+    response = client.post("/chemicals", json=payload)
+    assert response.status_code == 201
+    return response.json()
+
+
+def test_get_chemical_by_id(client: TestClient) -> None:
+    created = _create(client, WATER)
+
+    response = client.get(f"/chemicals/{created['id']}")
+
+    assert response.status_code == 200
+    assert response.json() == created
+
+
+def test_get_unknown_chemical_returns_404(client: TestClient) -> None:
+    assert client.get("/chemicals/999").status_code == 404
+
+
+@pytest.mark.parametrize("chemical_id", [0, -1, 2_147_483_648])
+def test_get_rejects_out_of_range_id(client: TestClient, chemical_id: int) -> None:
+    assert client.get(f"/chemicals/{chemical_id}").status_code == 422
+
+
+def test_patch_changes_only_given_fields(client: TestClient) -> None:
+    created = _create(client, WATER)
+
+    response = client.patch(
+        f"/chemicals/{created['id']}", json={"name": "Dihydrogen monoxide"}
+    )
+
+    body = response.json()
+    assert response.status_code == 200
+    assert body["name"] == "Dihydrogen monoxide"
+    assert body["cas_number"] == "7732-18-5"
+    assert body["formula"] == "H2O"
+
+
+def test_patch_can_clear_an_optional_field(client: TestClient) -> None:
+    created = _create(client, WATER)
+
+    response = client.patch(f"/chemicals/{created['id']}", json={"formula": None})
+
+    assert response.status_code == 200
+    assert response.json()["formula"] is None
+
+
+def test_patch_duplicate_cas_returns_conflict(client: TestClient) -> None:
+    _create(client, WATER)
+    other = _create(client, {"name": "Acetone", "cas_number": "67-64-1"})
+
+    response = client.patch(
+        f"/chemicals/{other['id']}", json={"cas_number": WATER["cas_number"]}
+    )
+
+    assert response.status_code == 409
+    assert client.get(f"/chemicals/{other['id']}").json()["cas_number"] == "67-64-1"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [{"cas_number": "7732-18-4"}, {"name": None}, {"name": ""}],
+)
+def test_patch_rejects_invalid_values(
+    client: TestClient, payload: dict[str, str | None]
+) -> None:
+    created = _create(client, WATER)
+
+    response = client.patch(f"/chemicals/{created['id']}", json=payload)
+
+    assert response.status_code == 422
+
+
+def test_patch_unknown_chemical_returns_404(client: TestClient) -> None:
+    response = client.patch("/chemicals/999", json={"name": "Nothing"})
+
+    assert response.status_code == 404
+
+
+def test_delete_removes_chemical(client: TestClient) -> None:
+    created = _create(client, WATER)
+
+    assert client.delete(f"/chemicals/{created['id']}").status_code == 204
+    assert client.get(f"/chemicals/{created['id']}").status_code == 404
+
+
+def test_delete_unknown_chemical_returns_404(client: TestClient) -> None:
+    assert client.delete("/chemicals/999").status_code == 404
