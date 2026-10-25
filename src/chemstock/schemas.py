@@ -1,4 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -57,4 +59,53 @@ class ChemicalRead(BaseModel):
     name: str
     cas_number: str | None
     formula: str | None
+    created_at: datetime
+
+
+Unit = Literal["mg", "g", "kg", "mL", "L"]
+
+
+class InventoryItemCreate(BaseModel):
+    """Data a client sends to register a bottle."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    chemical_id: int = Field(ge=1, le=2_147_483_647)
+    quantity: Decimal = Field(ge=0, max_digits=12, decimal_places=3)
+    unit: Unit
+    location: str | None = Field(default=None, max_length=100)
+    expiry_date: date | None = None
+
+
+class InventoryItemUpdate(BaseModel):
+    """Partial update of a bottle. The chemical itself cannot be changed."""
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    quantity: Decimal | None = Field(
+        default=None, ge=0, max_digits=12, decimal_places=3
+    )
+    unit: Unit | None = None
+    location: str | None = Field(default=None, max_length=100)
+    expiry_date: date | None = None
+
+    @field_validator("quantity", "unit")
+    @classmethod
+    def required_fields_cannot_be_null(cls, value: object) -> object:
+        if value is None:
+            raise ValueError("this field cannot be null")
+        return value
+
+
+class InventoryItemRead(BaseModel):
+    """Data the API returns for a bottle."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    chemical_id: int
+    quantity: Decimal
+    unit: str
+    location: str | None
+    expiry_date: date | None
     created_at: datetime
