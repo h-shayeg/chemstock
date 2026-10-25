@@ -109,3 +109,9 @@ class InventoryItemRead(BaseModel):
     location: str | None
     expiry_date: date | None
     created_at: datetime
+
+
+class ExpiringItemRead(InventoryItemRead):
+    """A bottle in the expiry report. Negative days mean already expired."""
+
+    days_until_expiry: int

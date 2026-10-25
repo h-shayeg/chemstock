@@ -49,4 +49,5 @@ tests/           pytest tests
 - [ ] Authentication and roles
 - [ ] PubChem integration for hazard (GHS) data, with caching
 - [ ] Storage-compatibility checks
-- [ ] Expiry and low-stock alerts
+- [x] Expiry alerts: bottles expiring soon or already expired
+- [ ] Low-stock alerts
