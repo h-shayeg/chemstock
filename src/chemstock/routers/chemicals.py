@@ -15,6 +15,9 @@ SessionDep = Annotated[Session, Depends(get_session)]
 # Upper bound = largest value of a PostgreSQL "integer" column.
 ChemicalId = Annotated[int, Path(ge=1, le=2_147_483_647)]
 
+CAS_CONFLICT = "A chemical with this CAS number already exists"
+IN_USE_CONFLICT = "Chemical still has inventory items; remove them first"
+
 
 def _get_or_404(session: Session, chemical_id: int) -> Chemical:
     chemical = session.get(Chemical, chemical_id)
@@ -23,14 +26,13 @@ def _get_or_404(session: Session, chemical_id: int) -> Chemical:
     return chemical
 
 
-def _commit(session: Session) -> None:
+def _commit(session: Session, conflict_detail: str) -> None:
     try:
         session.commit()
     except IntegrityError:
         session.rollback()
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A chemical with this CAS number already exists",
+            status_code=status.HTTP_409_CONFLICT, detail=conflict_detail
         ) from None
 
 
@@ -38,7 +40,7 @@ def _commit(session: Session) -> None:
 def create_chemical(payload: ChemicalCreate, session: SessionDep) -> Chemical:
     chemical = Chemical(**payload.model_dump())
     session.add(chemical)
-    _commit(session)
+    _commit(session, CAS_CONFLICT)
     session.refresh(chemical)
     return chemical
 
@@ -65,7 +67,7 @@ def update_chemical(
     chemical = _get_or_404(session, chemical_id)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(chemical, field, value)
-    _commit(session)
+    _commit(session, CAS_CONFLICT)
     session.refresh(chemical)
     return chemical
 
@@ -74,4 +76,4 @@ def update_chemical(
 def delete_chemical(chemical_id: ChemicalId, session: SessionDep) -> None:
     chemical = _get_or_404(session, chemical_id)
     session.delete(chemical)
-    session.commit()
+    _commit(session, IN_USE_CONFLICT)

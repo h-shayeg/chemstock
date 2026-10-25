@@ -6,6 +6,7 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session
 
 from chemstock.config import get_settings
 from chemstock.db import get_engine
@@ -53,10 +54,22 @@ def _test_database() -> Iterator[None]:
 
 
 @pytest.fixture
-def client(_test_database: None) -> Iterator[TestClient]:
+def clean_database(_test_database: None) -> None:
+    """Empty every table before each test (and never touch the dev database)."""
     engine = get_engine()
-    assert engine.url.database == TEST_DB_NAME  # safety net: never touch dev data
+    assert engine.url.database == TEST_DB_NAME  # safety net
     with engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE chemicals RESTART IDENTITY"))
+        conn.execute(text("TRUNCATE TABLE inventory_items, chemicals RESTART IDENTITY"))
+
+
+@pytest.fixture
+def client(clean_database: None) -> Iterator[TestClient]:
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def session(clean_database: None) -> Iterator[Session]:
+    """A direct database session, for arranging or inspecting test data."""
+    with Session(get_engine()) as db_session:
+        yield db_session
