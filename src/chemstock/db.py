@@ -1,5 +1,10 @@
-from sqlalchemy import MetaData
-from sqlalchemy.orm import DeclarativeBase
+from collections.abc import Iterator
+from functools import lru_cache
+
+from sqlalchemy import Engine, MetaData, create_engine
+from sqlalchemy.orm import DeclarativeBase, Session
+
+from chemstock.config import get_settings
 
 # Explicit constraint names keep database migrations predictable.
 NAMING_CONVENTION = {
@@ -15,3 +20,15 @@ class Base(DeclarativeBase):
     """Base class for all ORM models."""
 
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
+
+
+@lru_cache
+def get_engine() -> Engine:
+    """Create the database engine once, on first use."""
+    return create_engine(get_settings().database_url, pool_pre_ping=True)
+
+
+def get_session() -> Iterator[Session]:
+    """Give each request its own database session, closed afterwards."""
+    with Session(get_engine()) as session:
+        yield session
