@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from chemstock.routers import chemicals
+from chemstock.routers import chemicals, inventory_items
 
 app = FastAPI(
     title="ChemStock",
@@ -9,6 +9,7 @@ app = FastAPI(
 )
 
 app.include_router(chemicals.router)
+app.include_router(inventory_items.router)
 
 
 @app.get("/health", tags=["system"])

@@ -45,7 +45,7 @@ tests/           pytest tests
 - [x] CI with GitHub Actions
 - [x] PostgreSQL, SQLAlchemy and Alembic migrations
 - [x] Chemical catalog CRUD (name, CAS number, formula)
-- [ ] Inventory items (bottles): quantity, storage location, expiry date
+- [x] Inventory items (bottles): quantity, storage location, expiry date
 - [ ] Authentication and roles
 - [ ] PubChem integration for hazard (GHS) data, with caching
 - [ ] Storage-compatibility checks
