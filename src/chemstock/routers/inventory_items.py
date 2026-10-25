@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
@@ -5,9 +6,11 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from chemstock.clock import get_today
 from chemstock.db import get_session
 from chemstock.models import InventoryItem
 from chemstock.schemas import (
+    ExpiringItemRead,
     InventoryItemCreate,
     InventoryItemRead,
     InventoryItemUpdate,
@@ -16,6 +19,7 @@ from chemstock.schemas import (
 router = APIRouter(prefix="/inventory-items", tags=["inventory"])
 
 SessionDep = Annotated[Session, Depends(get_session)]
+TodayDep = Annotated[date, Depends(get_today)]
 # Upper bound = largest value of a PostgreSQL "integer" column.
 ItemId = Annotated[int, Path(ge=1, le=2_147_483_647)]
 
@@ -57,6 +61,40 @@ def list_inventory_items(
     if chemical_id is not None:
         statement = statement.where(InventoryItem.chemical_id == chemical_id)
     return list(session.scalars(statement.limit(limit).offset(offset)))
+
+
+# This route must be declared BEFORE "/{item_id}", otherwise FastAPI would
+# treat the word "expiring" as an item id.
+@router.get("/expiring", response_model=list[ExpiringItemRead])
+def list_expiring_items(
+    session: SessionDep,
+    today: TodayDep,
+    days: Annotated[int, Query(ge=0, le=3650)] = 30,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> list[ExpiringItemRead]:
+    """Bottles that expire within `days` days from today, or already expired.
+
+    The most urgent bottles come first.
+    """
+    cutoff = today + timedelta(days=days)
+    statement = (
+        select(InventoryItem)
+        .where(
+            InventoryItem.expiry_date.is_not(None),
+            InventoryItem.expiry_date <= cutoff,
+        )
+        .order_by(InventoryItem.expiry_date, InventoryItem.id)
+        .limit(limit)
+        .offset(offset)
+    )
+    return [
+        ExpiringItemRead(
+            **InventoryItemRead.model_validate(item).model_dump(),
+            days_until_expiry=(item.expiry_date - today).days,
+        )
+        for item in session.scalars(statement)
+    ]
 
 
 @router.get("/{item_id}", response_model=InventoryItemRead)
