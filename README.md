@@ -44,7 +44,8 @@ tests/           pytest tests
 - [x] Docker and Docker Compose
 - [x] CI with GitHub Actions
 - [x] PostgreSQL, SQLAlchemy and Alembic migrations
-- [ ] Chemical inventory CRUD (name, CAS number, quantity, location, expiry date)
+- [x] Chemical catalog CRUD (name, CAS number, formula)
+- [ ] Inventory items (bottles): quantity, storage location, expiry date
 - [ ] Authentication and roles
 - [ ] PubChem integration for hazard (GHS) data, with caching
 - [ ] Storage-compatibility checks
