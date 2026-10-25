@@ -1,4 +1,17 @@
+import pytest
+
 from chemstock.config import Settings
+
+
+@pytest.fixture(autouse=True)
+def _clean_database_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make these tests independent of the machine's POSTGRES_* variables.
+
+    CI sets POSTGRES_HOST and POSTGRES_PORT for its database service, and the
+    defaults test must not see them.
+    """
+    for name in ("POSTGRES_HOST", "POSTGRES_PORT"):
+        monkeypatch.delenv(name, raising=False)
 
 
 def make_settings(**overrides: object) -> Settings:
