@@ -61,7 +61,8 @@ def clean_database(_test_database: None) -> None:
     with engine.begin() as conn:
         conn.execute(
             text(
-                "TRUNCATE TABLE inventory_items, chemical_hazard_classes, chemicals "
+                "TRUNCATE TABLE inventory_items, chemical_hazard_classes, chemicals, "
+                "users "
                 "RESTART IDENTITY"
             )
         )
