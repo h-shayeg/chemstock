@@ -59,7 +59,12 @@ def clean_database(_test_database: None) -> None:
     engine = get_engine()
     assert engine.url.database == TEST_DB_NAME  # safety net
     with engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE inventory_items, chemicals RESTART IDENTITY"))
+        conn.execute(
+            text(
+                "TRUNCATE TABLE inventory_items, chemical_hazard_classes, chemicals "
+                "RESTART IDENTITY"
+            )
+        )
 
 
 @pytest.fixture

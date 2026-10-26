@@ -6,8 +6,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from chemstock.db import get_session
-from chemstock.models import Chemical
-from chemstock.schemas import ChemicalCreate, ChemicalRead, ChemicalUpdate
+from chemstock.models import Chemical, ChemicalHazardClass
+from chemstock.schemas import (
+    ChemicalCreate,
+    ChemicalRead,
+    ChemicalUpdate,
+    HazardClassesUpdate,
+)
 
 router = APIRouter(prefix="/chemicals", tags=["chemicals"])
 
@@ -77,3 +82,21 @@ def delete_chemical(chemical_id: ChemicalId, session: SessionDep) -> None:
     chemical = _get_or_404(session, chemical_id)
     session.delete(chemical)
     _commit(session, IN_USE_CONFLICT)
+
+
+@router.put("/{chemical_id}/hazard-classes", response_model=ChemicalRead)
+def set_hazard_classes(
+    chemical_id: ChemicalId, payload: HazardClassesUpdate, session: SessionDep
+) -> Chemical:
+    """Replace the hazard classes of a chemical with exactly the given set."""
+    chemical = _get_or_404(session, chemical_id)
+    wanted = {hazard.value for hazard in payload.hazard_classes}
+    for link in list(chemical.hazard_links):
+        if link.hazard_class not in wanted:
+            chemical.hazard_links.remove(link)
+    present = {link.hazard_class for link in chemical.hazard_links}
+    for value in sorted(wanted - present):
+        chemical.hazard_links.append(ChemicalHazardClass(hazard_class=value))
+    _commit(session, "Hazard classes were changed at the same time; try again")
+    session.refresh(chemical)
+    return chemical

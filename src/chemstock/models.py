@@ -10,9 +10,12 @@ from sqlalchemy import (
     String,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from chemstock.compatibility import HazardClass
 from chemstock.db import Base
+
+_HAZARD_CLASS_VALUES = ", ".join(f"'{hazard.value}'" for hazard in HazardClass)
 
 
 class Chemical(Base):
@@ -27,6 +30,33 @@ class Chemical(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    hazard_links: Mapped[list["ChemicalHazardClass"]] = relationship(
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
+    )
+
+    @property
+    def hazard_classes(self) -> list[str]:
+        """Hazard class names, sorted. An empty list means "not reviewed yet"."""
+        return sorted(link.hazard_class for link in self.hazard_links)
+
+
+class ChemicalHazardClass(Base):
+    """One hazard class of one chemical (a chemical can have several)."""
+
+    __tablename__ = "chemical_hazard_classes"
+    __table_args__ = (
+        CheckConstraint(
+            f"hazard_class IN ({_HAZARD_CLASS_VALUES})",
+            name="hazard_class_allowed",
+        ),
+    )
+
+    chemical_id: Mapped[int] = mapped_column(
+        ForeignKey("chemicals.id", ondelete="CASCADE"), primary_key=True
+    )
+    hazard_class: Mapped[str] = mapped_column(String(30), primary_key=True)
 
 
 class InventoryItem(Base):

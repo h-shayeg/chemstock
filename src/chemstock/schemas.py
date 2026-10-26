@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from chemstock.chemistry import is_valid_cas
+from chemstock.compatibility import HazardClass
 
 
 def _check_cas(value: str | None) -> str | None:
@@ -59,6 +60,7 @@ class ChemicalRead(BaseModel):
     name: str
     cas_number: str | None
     formula: str | None
+    hazard_classes: list[HazardClass]
     created_at: datetime
 
 
@@ -115,3 +117,26 @@ class ExpiringItemRead(InventoryItemRead):
     """A bottle in the expiry report. Negative days mean already expired."""
 
     days_until_expiry: int
+
+
+class HazardClassesUpdate(BaseModel):
+    """The complete set of hazard classes of a chemical (replaces the old set)."""
+
+    hazard_classes: list[HazardClass] = Field(max_length=50)
+
+    @field_validator("hazard_classes")
+    @classmethod
+    def remove_duplicates(cls, value: list[HazardClass]) -> list[HazardClass]:
+        unique = sorted(set(value))
+        if HazardClass.UNCLASSIFIED in unique and len(unique) > 1:
+            raise ValueError(
+                "'unclassified' cannot be combined with other hazard classes"
+            )
+        return unique
+
+
+class HazardClassRead(BaseModel):
+    """A hazard class and what it means."""
+
+    name: HazardClass
+    description: str
