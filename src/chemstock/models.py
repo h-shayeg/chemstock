@@ -9,13 +9,16 @@ from sqlalchemy import (
     Numeric,
     String,
     func,
+    true,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from chemstock.compatibility import HazardClass
 from chemstock.db import Base
+from chemstock.roles import Role
 
 _HAZARD_CLASS_VALUES = ", ".join(f"'{hazard.value}'" for hazard in HazardClass)
+_ROLE_VALUES = ", ".join(f"'{role.value}'" for role in Role)
 
 
 class Chemical(Base):
@@ -76,6 +79,25 @@ class InventoryItem(Base):
     unit: Mapped[str] = mapped_column(String(10))
     location: Mapped[str | None] = mapped_column(String(100))
     expiry_date: Mapped[date | None] = mapped_column(Date)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class User(Base):
+    """A person who can log in. Their role decides what they may do."""
+
+    __tablename__ = "users"
+    __table_args__ = (
+        CheckConstraint(f"role IN ({_ROLE_VALUES})", name="role_allowed"),
+        CheckConstraint("username = lower(username)", name="username_lowercase"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(50), unique=True)
+    hashed_password: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(20))
+    is_active: Mapped[bool] = mapped_column(server_default=true())
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
