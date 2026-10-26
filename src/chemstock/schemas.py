@@ -140,3 +140,30 @@ class HazardClassRead(BaseModel):
 
     name: HazardClass
     description: str
+
+
+class ConflictItem(BaseModel):
+    """One of the two bottles of a storage conflict."""
+
+    inventory_item_id: int
+    chemical_id: int
+    chemical_name: str
+    hazard_classes: list[str]
+
+
+class ConflictReason(BaseModel):
+    """One rule that applies to a pair of bottles."""
+
+    rule: str
+    severity: int
+    message: str
+
+
+class StorageConflictRead(BaseModel):
+    """Two bottles in the same place that should be stored apart."""
+
+    status: Literal["conflict", "review_required"]
+    severity: int | None
+    location: str
+    items: list[ConflictItem]
+    reasons: list[ConflictReason]

@@ -48,6 +48,13 @@ tests/           pytest tests
 - [x] Inventory items (bottles): quantity, storage location, expiry date
 - [ ] Authentication and roles
 - [ ] PubChem integration for hazard (GHS) data, with caching
-- [ ] Storage-compatibility checks
+- [x] Storage-compatibility checks (hazard classes, rules, `/storage-conflicts`)
 - [x] Expiry alerts: bottles expiring soon or already expired
 - [ ] Low-stock alerts
+
+## Safety note
+
+The storage-compatibility checks are an assistive tool, not a replacement for the
+Safety Data Sheet (SDS) or your institution's safety rules. Hazard classes are a
+simplification and are entered by people. A chemical without a classification is
+reported as `review_required`, never as safe.
