@@ -1,4 +1,5 @@
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,9 @@ from sqlalchemy.orm import Session
 from chemstock.config import get_settings
 from chemstock.db import get_engine
 from chemstock.main import app
+from chemstock.models import User
+from chemstock.roles import Role
+from chemstock.tokens import create_access_token
 
 ROOT = Path(__file__).resolve().parent.parent
 TEST_DB_NAME = "chemstock_test"
@@ -70,10 +74,47 @@ def clean_database(_test_database: None) -> None:
         )
 
 
+def _auth_headers(role: Role) -> dict[str, str]:
+    """Create a user with this role and return headers carrying their token."""
+    with Session(get_engine()) as db_session:
+        user = User(
+            username=f"test-{role.value}",
+            hashed_password="not-a-real-hash",  # tests mint tokens directly
+            role=role.value,
+        )
+        db_session.add(user)
+        db_session.commit()
+        user_id = user.id
+    token = create_access_token(str(user_id), TEST_SECRET_KEY, timedelta(minutes=30))
+    return {"Authorization": f"Bearer {token}"}
+
+
 @pytest.fixture
-def client(clean_database: None) -> Iterator[TestClient]:
+def anonymous_client(clean_database: None) -> Iterator[TestClient]:
+    """A client that is not logged in."""
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def client_as(clean_database: None) -> Iterator[Callable[[Role], TestClient]]:
+    """Build a client logged in as a user with the given role (once per role)."""
+    clients: dict[Role, TestClient] = {}
+
+    def build(role: Role) -> TestClient:
+        if role not in clients:
+            clients[role] = TestClient(app, headers=_auth_headers(role))
+        return clients[role]
+
+    yield build
+    for test_client in clients.values():
+        test_client.close()
+
+
+@pytest.fixture
+def client(client_as: Callable[[Role], TestClient]) -> TestClient:
+    """The default client is an admin, so ordinary API tests need no auth code."""
+    return client_as(Role.ADMIN)
 
 
 @pytest.fixture

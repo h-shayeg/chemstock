@@ -1,17 +1,22 @@
-"""FastAPI dependencies that identify who is calling."""
+"""FastAPI dependencies that identify who is calling and what they may do."""
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from chemstock.config import get_settings
 from chemstock.db import get_session
 from chemstock.models import User
+from chemstock.roles import Role
 from chemstock.tokens import read_access_token
 
 MAX_USER_ID = 2_147_483_647  # largest value of a PostgreSQL "integer" column
+
+# A higher rank may do everything a lower rank may do.
+ROLE_RANK = {Role.VIEWER: 1, Role.MEMBER: 2, Role.ADMIN: 3}
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
@@ -42,3 +47,22 @@ def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def has_role(user: User, minimum: Role) -> bool:
+    return ROLE_RANK[Role(user.role)] >= ROLE_RANK[minimum]
+
+
+def require_access(request: Request, user: CurrentUser) -> User:
+    """Default policy of the inventory API.
+
+    Reading needs at least "viewer"; anything that changes data (POST, PUT,
+    PATCH, DELETE) needs at least "member". Applied to whole routers, so a new
+    endpoint is protected from its first day.
+    """
+    minimum = Role.VIEWER if request.method in SAFE_METHODS else Role.MEMBER
+    if not has_role(user, minimum):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
+        )
+    return user
