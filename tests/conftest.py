@@ -14,6 +14,7 @@ from chemstock.main import app
 
 ROOT = Path(__file__).resolve().parent.parent
 TEST_DB_NAME = "chemstock_test"
+TEST_SECRET_KEY = "test-only-secret-key-do-not-use-in-production"
 
 
 def _reset_caches() -> None:
@@ -26,6 +27,7 @@ def _test_database() -> Iterator[None]:
     """Create and migrate a dedicated test database (never the dev one)."""
     with pytest.MonkeyPatch.context() as monkeypatch:
         monkeypatch.setenv("POSTGRES_DB", TEST_DB_NAME)
+        monkeypatch.setenv("SECRET_KEY", TEST_SECRET_KEY)
         _reset_caches()
         settings = get_settings()
         assert settings.postgres_db == TEST_DB_NAME

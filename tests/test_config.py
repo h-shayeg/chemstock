@@ -1,16 +1,24 @@
 import pytest
+from pydantic import ValidationError
 
 from chemstock.config import Settings
 
+SECRET = "s" * 40
+
 
 @pytest.fixture(autouse=True)
-def _clean_database_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Make these tests independent of the machine's POSTGRES_* variables.
+def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make these tests independent of the machine's environment variables.
 
     CI sets POSTGRES_HOST and POSTGRES_PORT for its database service, and the
     defaults test must not see them.
     """
-    for name in ("POSTGRES_HOST", "POSTGRES_PORT"):
+    for name in (
+        "POSTGRES_HOST",
+        "POSTGRES_PORT",
+        "SECRET_KEY",
+        "ACCESS_TOKEN_EXPIRE_MINUTES",
+    ):
         monkeypatch.delenv(name, raising=False)
 
 
@@ -19,6 +27,7 @@ def make_settings(**overrides: object) -> Settings:
         "postgres_user": "user",
         "postgres_password": "p@ss/word",
         "postgres_db": "db",
+        "secret_key": SECRET,
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)
@@ -43,3 +52,39 @@ def test_database_url_escapes_special_characters_in_password() -> None:
     rendered = make_settings().database_url.render_as_string(hide_password=False)
 
     assert "p%40ss%2Fword" in rendered
+
+
+def test_secret_key_is_required() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            _env_file=None,
+            postgres_user="user",
+            postgres_password="password",
+            postgres_db="db",
+        )
+
+
+def test_short_secret_key_is_rejected_without_leaking_it() -> None:
+    with pytest.raises(ValidationError) as error:
+        make_settings(secret_key="too-short-secret")
+
+    assert "at least 32 characters" in str(error.value)
+    assert "too-short-secret" not in str(error.value)
+
+
+def test_secret_key_is_hidden_when_settings_are_printed() -> None:
+    settings = make_settings()
+
+    assert SECRET not in repr(settings)
+    assert SECRET not in str(settings)
+    assert settings.secret_key.get_secret_value() == SECRET
+
+
+def test_token_lifetime_defaults_to_30_minutes() -> None:
+    assert make_settings().access_token_expire_minutes == 30
+
+
+@pytest.mark.parametrize("minutes", [0, 1441])
+def test_token_lifetime_must_be_reasonable(minutes: int) -> None:
+    with pytest.raises(ValidationError):
+        make_settings(access_token_expire_minutes=minutes)

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from chemstock.routers import (
+    auth,
     chemicals,
     hazard_classes,
     inventory_items,
@@ -13,6 +14,7 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.include_router(auth.router)
 app.include_router(chemicals.router)
 app.include_router(hazard_classes.router)
 app.include_router(inventory_items.router)

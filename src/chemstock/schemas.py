@@ -167,3 +167,23 @@ class StorageConflictRead(BaseModel):
     location: str
     items: list[ConflictItem]
     reasons: list[ConflictReason]
+
+
+class TokenRead(BaseModel):
+    """What a successful login returns."""
+
+    access_token: str
+    token_type: Literal["bearer"]
+    expires_in: int  # seconds
+
+
+class UserRead(BaseModel):
+    """A user as the API shows it (never the password hash)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    username: str
+    role: str
+    is_active: bool
+    created_at: datetime

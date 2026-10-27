@@ -16,6 +16,8 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "alembic>=1.13",
     "pwdlib[argon2]>=0.2",
+    "pyjwt>=2.10",
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
