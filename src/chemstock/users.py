@@ -2,7 +2,7 @@
 
 import re
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -46,6 +46,10 @@ def create_user(
         role_value = Role(role).value
     except ValueError:
         raise UserError(f"Unknown role {role!r}.") from None
+    if role_value == Role.OWNER.value:
+        raise UserError(
+            "The owner role can only be given with the set-owner command."
+        )
 
     user = User(
         username=name, hashed_password=hash_password(password), role=role_value
@@ -74,3 +78,33 @@ def authenticate_user(session: Session, username: str, password: str) -> User | 
         return None
     password_is_right = verify_password(password, user.hashed_password)
     return user if password_is_right and user.is_active else None
+
+
+def set_owner(session: Session, username: str) -> tuple[User, str | None]:
+    """Make an existing, active user the owner (the one main admin).
+
+    The previous owner, if there is one, becomes an admin. Returns the new owner
+    and the username of the previous owner (None if there was none).
+    """
+    name = normalize_username(username)
+    target = session.scalar(select(User).where(User.username == name))
+    if target is None:
+        raise UserError(f"There is no user named '{name}'.")
+    if not target.is_active:
+        raise UserError("An inactive user cannot become the owner.")
+    current = session.scalar(select(User).where(User.role == Role.OWNER.value))
+    if current is not None and current.id == target.id:
+        return target, None
+    previous = current.username if current is not None else None
+    # Order matters: the old owner must be demoted before the new one is promoted,
+    # or the "one owner only" index would be violated for a moment.
+    if current is not None:
+        session.execute(
+            update(User).where(User.id == current.id).values(role=Role.ADMIN.value)
+        )
+    session.execute(
+        update(User).where(User.id == target.id).values(role=Role.OWNER.value)
+    )
+    session.commit()
+    session.refresh(target)
+    return target, previous

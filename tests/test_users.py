@@ -1,4 +1,5 @@
 import pytest
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -10,6 +11,7 @@ from chemstock.users import (
     UsernameTakenError,
     authenticate_user,
     create_user,
+    set_owner,
 )
 
 PASSWORD = "a long enough password"
@@ -126,6 +128,63 @@ def test_database_rejects_unknown_role(session: Session) -> None:
 
 def test_database_rejects_username_with_capital_letters(session: Session) -> None:
     session.add(User(username="Mallory", hashed_password="x", role="member"))
+
+    with pytest.raises(IntegrityError):
+        session.commit()
+
+
+def test_set_owner_promotes_an_active_user(session: Session) -> None:
+    create_user(session, "alice", PASSWORD, "admin")
+
+    owner, previous = set_owner(session, "  ALICE ")
+
+    assert (owner.username, owner.role, previous) == ("alice", "owner", None)
+
+
+def test_set_owner_demotes_the_previous_owner(session: Session) -> None:
+    create_user(session, "alice", PASSWORD, "admin")
+    create_user(session, "bob", PASSWORD, "member")
+    set_owner(session, "alice")
+
+    owner, previous = set_owner(session, "bob")
+
+    assert (owner.username, previous) == ("bob", "alice")
+    roles = {user.username: user.role for user in session.scalars(select(User))}
+    assert roles == {"alice": "admin", "bob": "owner"}
+
+
+def test_set_owner_twice_changes_nothing(session: Session) -> None:
+    create_user(session, "alice", PASSWORD, "admin")
+    set_owner(session, "alice")
+
+    owner, previous = set_owner(session, "alice")
+
+    assert (owner.role, previous) == ("owner", None)
+
+
+def test_set_owner_rejects_an_unknown_user(session: Session) -> None:
+    with pytest.raises(UserError):
+        set_owner(session, "ghost")
+
+
+def test_an_inactive_user_cannot_become_the_owner(session: Session) -> None:
+    user = create_user(session, "alice", PASSWORD, "admin")
+    user.is_active = False
+    session.commit()
+
+    with pytest.raises(UserError):
+        set_owner(session, "alice")
+
+
+def test_create_user_cannot_create_an_owner(session: Session) -> None:
+    with pytest.raises(UserError):
+        create_user(session, "alice", PASSWORD, "owner")
+
+
+def test_database_allows_only_one_owner(session: Session) -> None:
+    session.add(User(username="boss-one", hashed_password="x", role="owner"))
+    session.commit()
+    session.add(User(username="boss-two", hashed_password="x", role="owner"))
 
     with pytest.raises(IntegrityError):
         session.commit()

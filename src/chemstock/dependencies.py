@@ -1,5 +1,6 @@
 """FastAPI dependencies that identify who is calling and what they may do."""
 
+from collections.abc import Callable
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
@@ -9,13 +10,11 @@ from sqlalchemy.orm import Session
 from chemstock.config import get_settings
 from chemstock.db import get_session
 from chemstock.models import User
-from chemstock.roles import Role
+from chemstock.roles import ROLE_RANK, Role
 from chemstock.tokens import read_access_token
 
 MAX_USER_ID = 2_147_483_647  # largest value of a PostgreSQL "integer" column
 
-# A higher rank may do everything a lower rank may do.
-ROLE_RANK = {Role.VIEWER: 1, Role.MEMBER: 2, Role.ADMIN: 3}
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
@@ -26,6 +25,12 @@ def _unauthorized() -> HTTPException:
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def _forbidden() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
     )
 
 
@@ -62,7 +67,16 @@ def require_access(request: Request, user: CurrentUser) -> User:
     """
     minimum = Role.VIEWER if request.method in SAFE_METHODS else Role.MEMBER
     if not has_role(user, minimum):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
-        )
+        raise _forbidden()
     return user
+
+
+def require_role(minimum: Role) -> Callable[[User], User]:
+    """Dependency factory: the caller must have at least this role."""
+
+    def check(user: CurrentUser) -> User:
+        if not has_role(user, minimum):
+            raise _forbidden()
+        return user
+
+    return check

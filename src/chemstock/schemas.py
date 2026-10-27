@@ -1,11 +1,18 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from chemstock.chemistry import is_valid_cas
 from chemstock.compatibility import HazardClass
+from chemstock.roles import Role
 
 
 def _check_cas(value: str | None) -> str | None:
@@ -187,3 +194,33 @@ class UserRead(BaseModel):
     role: str
     is_active: bool
     created_at: datetime
+
+
+class UserCreate(BaseModel):
+    """Data an admin sends to create a user.
+
+    The password is a plain str on purpose: it is checked in create_user(),
+    whose messages never repeat it.
+    """
+
+    username: str = Field(max_length=100)
+    password: str
+    role: Role
+
+
+class UserUpdate(BaseModel):
+    """Partial update of a user. The username is fixed; passwords come later."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    role: Role | None = None
+    is_active: bool | None = None
+
+    @model_validator(mode="after")
+    def check_fields(self) -> Self:
+        if not self.model_fields_set:
+            raise ValueError("send at least one of: role, is_active")
+        for name in self.model_fields_set:
+            if getattr(self, name) is None:
+                raise ValueError(f"{name} cannot be null")
+        return self
