@@ -6,9 +6,11 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Numeric,
     String,
     func,
+    text,
     true,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -91,6 +93,13 @@ class User(Base):
     __table_args__ = (
         CheckConstraint(f"role IN ({_ROLE_VALUES})", name="role_allowed"),
         CheckConstraint("username = lower(username)", name="username_lowercase"),
+        # At most one owner can exist.
+        Index(
+            "uq_users_single_owner",
+            "role",
+            unique=True,
+            postgresql_where=text("role = 'owner'"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

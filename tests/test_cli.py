@@ -78,3 +78,33 @@ def test_duplicate_username_is_reported(
     assert cli.main(["create-user", "ALICE"]) == 1
 
     assert "already taken" in capsys.readouterr().err
+
+
+def test_set_owner_command(
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _type(monkeypatch, PASSWORD, PASSWORD)
+    assert cli.main(["create-user", "alice", "--role", "admin"]) == 0
+    capsys.readouterr()
+
+    assert cli.main(["set-owner", "Alice"]) == 0
+
+    assert session.scalars(select(User)).one().role == "owner"
+    assert "'alice' is now the owner" in capsys.readouterr().out
+
+
+def test_set_owner_reports_an_unknown_user(
+    session: Session, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert cli.main(["set-owner", "ghost"]) == 1
+
+    assert "Error:" in capsys.readouterr().err
+
+
+def test_owner_role_cannot_be_given_with_create_user() -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        cli.main(["create-user", "alice", "--role", "owner"])
+
+    assert exit_info.value.code == 2

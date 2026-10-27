@@ -47,7 +47,9 @@ tests/           pytest tests
 - [x] Chemical catalog CRUD (name, CAS number, formula)
 - [x] Inventory items (bottles): quantity, storage location, expiry date
 - [x] Authentication: login with JWT access tokens, role-based access (admin / member / viewer)
-- [ ] User management API (create users, change roles, deactivate)
+- [x] User management API with an owner (create users, change roles, deactivate)
+- [ ] Admin permissions controlled by the owner
+- [ ] Users change their own password
 - [ ] PubChem integration for hazard (GHS) data, with caching
 - [x] Storage-compatibility checks (hazard classes, rules, `/storage-conflicts`)
 - [x] Expiry alerts: bottles expiring soon or already expired
@@ -68,7 +70,8 @@ Every endpoint except `GET /health` and `POST /auth/login` needs an access token
 |---|---|
 | `viewer` | read everything |
 | `member` | read and change chemicals, hazard classes and inventory items |
-| `admin` | everything a member can do (user management API: coming next) |
+| `admin` | everything a member can do, plus manage `member` and `viewer` accounts |
+| `owner` | the one main admin: everything, and the only one who manages admins |
 
 Create the first admin, log in, and call the API:
 
@@ -79,3 +82,16 @@ Create the first admin, log in, and call the API:
 The interactive docs at `/docs` have an **Authorize** button for the same login.
 Roles are read from the database on every request, so deactivating a user or
 changing a role takes effect immediately.
+
+### Managing users
+
+Admins and the owner use `/users` (`POST`, `GET`, `PATCH`). Everyone may only change
+accounts that rank strictly below their own, and may only hand out roles strictly
+below their own. So admins manage members and viewers, and only the owner manages
+admins. Nobody changes their own role or status, and users are deactivated, never
+deleted.
+
+The owner role cannot be given through the API. Promote an existing user from the
+command line (the previous owner, if any, becomes an admin):
+
+    python -m chemstock.cli set-owner alice

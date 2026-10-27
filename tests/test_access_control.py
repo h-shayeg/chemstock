@@ -16,6 +16,15 @@ VIEWER, MEMBER = Role.VIEWER, Role.MEMBER
 # The only endpoints that work without logging in.
 PUBLIC_OPERATIONS = {("GET", "/health"), ("POST", "/auth/login")}
 
+# Tested in test_user_management_api.py: whether such a call is allowed also
+# depends on WHICH user it targets, so the simple role table cannot express it.
+USER_MANAGEMENT = {
+    ("POST", "/users"),
+    ("GET", "/users"),
+    ("GET", "/users/{user_id}"),
+    ("PATCH", "/users/{user_id}"),
+}
+
 # (method, path, JSON body, lowest role that may call it).
 # Reading needs "viewer"; changing data needs "member". A test below fails if
 # this table and the real API ever disagree.
@@ -67,7 +76,7 @@ PROTECTED = sorted(_api_operations() - PUBLIC_OPERATIONS)
 def test_endpoint_table_matches_the_real_api() -> None:
     documented = {(method, path) for method, path, _body, _role in ENDPOINTS}
 
-    assert documented == set(PROTECTED)
+    assert documented == set(PROTECTED) - USER_MANAGEMENT
 
 
 @pytest.mark.parametrize(
