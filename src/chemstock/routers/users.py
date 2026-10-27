@@ -48,7 +48,7 @@ def register_user(
     except UsernameTakenError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from None
     except UserError as error:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(error)) from None
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from None
 
 
 @router.get("", response_model=list[UserRead])
