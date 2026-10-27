@@ -67,3 +67,31 @@ def test_token_with_missing_or_wrong_claims_is_rejected(
 @pytest.mark.parametrize("garbage", ["", "abc", "a.b.c", "Bearer xyz"])
 def test_garbage_is_rejected(garbage: str) -> None:
     assert read_access_token(garbage, KEY) is None
+
+
+def test_small_clock_differences_are_tolerated() -> None:
+    now = datetime.now(UTC)
+    # Issued "in the future": this machine's clock moved back a little.
+    from_the_future = create_access_token(
+        "42", KEY, timedelta(minutes=5), now=now + timedelta(seconds=5)
+    )
+    # Expired a few seconds ago: the clock moved forward a little.
+    just_expired = create_access_token(
+        "42", KEY, timedelta(minutes=5), now=now - timedelta(minutes=5, seconds=5)
+    )
+
+    assert read_access_token(from_the_future, KEY) == "42"
+    assert read_access_token(just_expired, KEY) == "42"
+
+
+def test_large_clock_differences_are_not_tolerated() -> None:
+    now = datetime.now(UTC)
+    far_future = create_access_token(
+        "42", KEY, timedelta(minutes=5), now=now + timedelta(minutes=5)
+    )
+    long_expired = create_access_token(
+        "42", KEY, timedelta(minutes=5), now=now - timedelta(minutes=7)
+    )
+
+    assert read_access_token(far_future, KEY) is None
+    assert read_access_token(long_expired, KEY) is None
