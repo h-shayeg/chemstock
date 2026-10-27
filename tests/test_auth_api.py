@@ -12,6 +12,12 @@ from chemstock.users import create_user
 PASSWORD = "a long enough password"
 
 
+@pytest.fixture
+def client(anonymous_client: TestClient) -> TestClient:
+    """These tests are about logging in, so they start without credentials."""
+    return anonymous_client
+
+
 def _login(
     client: TestClient, username: str = "alice", password: str = PASSWORD
 ) -> Response:

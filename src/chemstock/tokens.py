@@ -9,6 +9,9 @@ from datetime import UTC, datetime, timedelta
 import jwt
 
 ALGORITHM = "HS256"
+# Machines never agree exactly on the time, and a clock can jump (for example
+# after a laptop wakes up). Differences up to this are tolerated.
+CLOCK_SKEW_LEEWAY = timedelta(seconds=30)
 
 
 def create_access_token(
@@ -26,13 +29,15 @@ def read_access_token(token: str, secret_key: str) -> str | None:
     """Return the subject of a valid token, or None for any problem at all.
 
     Only HS256 is accepted (so "alg: none" and other tricks fail), and a token
-    must carry both an expiry and a subject.
+    must carry both an expiry and a subject. Clocks may differ by up to
+    CLOCK_SKEW_LEEWAY.
     """
     try:
         claims = jwt.decode(
             token,
             secret_key,
             algorithms=[ALGORITHM],
+            leeway=CLOCK_SKEW_LEEWAY,
             options={"require": ["exp", "sub"]},
         )
     except jwt.InvalidTokenError:
