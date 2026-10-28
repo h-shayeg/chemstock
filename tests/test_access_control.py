@@ -54,6 +54,12 @@ ENDPOINTS: list[tuple[str, str, dict[str, object] | None, Role]] = [
     ("DELETE", "/inventory-items/{item_id}", None, MEMBER),
     ("GET", "/storage-conflicts", None, VIEWER),
     ("GET", "/auth/me", None, VIEWER),
+    (
+        "POST",
+        "/auth/change-password",
+        {"current_password": "not the password", "new_password": "x" * 20},
+        VIEWER,
+    ),
 ]
 
 

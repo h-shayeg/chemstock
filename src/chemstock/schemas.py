@@ -224,3 +224,10 @@ class UserUpdate(BaseModel):
             if getattr(self, name) is None:
                 raise ValueError(f"{name} cannot be null")
         return self
+
+
+class PasswordChange(BaseModel):
+    """Data a user sends to change their own password."""
+
+    current_password: str
+    new_password: str

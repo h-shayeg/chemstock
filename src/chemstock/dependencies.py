@@ -39,8 +39,11 @@ def get_current_user(
     session: Annotated[Session, Depends(get_session)],
 ) -> User:
     """The active user the token belongs to. The database has the final word."""
-    subject = read_access_token(token, get_settings().secret_key.get_secret_value())
-    if subject is None or not (subject.isascii() and subject.isdecimal()):
+    claims = read_access_token(token, get_settings().secret_key.get_secret_value())
+    if claims is None:
+        raise _unauthorized()
+    subject = claims.subject
+    if not (subject.isascii() and subject.isdecimal()):
         raise _unauthorized()
     user_id = int(subject)
     if not 1 <= user_id <= MAX_USER_ID:
@@ -48,6 +51,8 @@ def get_current_user(
     user = session.get(User, user_id)
     if user is None or not user.is_active:
         raise _unauthorized()
+    if user.token_version != claims.version:
+        raise _unauthorized()  # the password changed after this token
     return user
 
 

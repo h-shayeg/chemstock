@@ -107,6 +107,8 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(20))
     is_active: Mapped[bool] = mapped_column(server_default=true())
+    # Raised when the password changes; older access tokens then stop working.
+    token_version: Mapped[int] = mapped_column(server_default=text("0"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

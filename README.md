@@ -49,7 +49,7 @@ tests/           pytest tests
 - [x] Authentication: login with JWT access tokens, role-based access (admin / member / viewer)
 - [x] User management API with an owner (create users, change roles, deactivate)
 - [ ] Admin permissions controlled by the owner
-- [ ] Users change their own password
+- [x] Users change their own password (older tokens stop working)
 - [ ] PubChem integration for hazard (GHS) data, with caching
 - [x] Storage-compatibility checks (hazard classes, rules, `/storage-conflicts`)
 - [x] Expiry alerts: bottles expiring soon or already expired
@@ -95,3 +95,8 @@ The owner role cannot be given through the API. Promote an existing user from th
 command line (the previous owner, if any, becomes an admin):
 
     python -m chemstock.cli set-owner alice
+
+### Changing your password
+
+`POST /auth/change-password` with `current_password` and `new_password`. Afterwards
+every access token issued before the change stops working, so log in again.

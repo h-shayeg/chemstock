@@ -28,6 +28,15 @@ def normalize_username(username: str) -> str:
     return username.strip().casefold()
 
 
+def validate_password(password: str) -> None:
+    """Raise UserError unless the password has an acceptable length."""
+    if not MIN_PASSWORD_LENGTH <= len(password) <= MAX_PASSWORD_LENGTH:
+        raise UserError(
+            f"Password must be {MIN_PASSWORD_LENGTH}-{MAX_PASSWORD_LENGTH} "
+            "characters long."
+        )
+
+
 def create_user(
     session: Session, username: str, password: str, role: Role | str
 ) -> User:
@@ -37,11 +46,7 @@ def create_user(
             "Username must be 3-50 characters: lowercase letters, digits, '_', "
             "'.' or '-', starting with a letter or a digit."
         )
-    if not MIN_PASSWORD_LENGTH <= len(password) <= MAX_PASSWORD_LENGTH:
-        raise UserError(
-            f"Password must be {MIN_PASSWORD_LENGTH}-{MAX_PASSWORD_LENGTH} "
-            "characters long."
-        )
+    validate_password(password)
     try:
         role_value = Role(role).value
     except ValueError:
