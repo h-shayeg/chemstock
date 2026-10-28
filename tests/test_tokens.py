@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 import jwt
 import pytest
 
-from chemstock.tokens import create_access_token, read_access_token
+from chemstock.tokens import AccessClaims, create_access_token, read_access_token
 
 KEY = "k" * 64
 OTHER_KEY = "o" * 64
@@ -15,7 +15,7 @@ LATER = datetime.now(UTC) + timedelta(hours=1)
 def test_round_trip() -> None:
     token = create_access_token("42", KEY, timedelta(minutes=5))
 
-    assert read_access_token(token, KEY) == "42"
+    assert read_access_token(token, KEY) == AccessClaims("42", 0)
 
 
 def test_expired_token_is_rejected() -> None:
@@ -80,8 +80,8 @@ def test_small_clock_differences_are_tolerated() -> None:
         "42", KEY, timedelta(minutes=5), now=now - timedelta(minutes=5, seconds=5)
     )
 
-    assert read_access_token(from_the_future, KEY) == "42"
-    assert read_access_token(just_expired, KEY) == "42"
+    assert read_access_token(from_the_future, KEY) == AccessClaims("42", 0)
+    assert read_access_token(just_expired, KEY) == AccessClaims("42", 0)
 
 
 def test_large_clock_differences_are_not_tolerated() -> None:
@@ -95,3 +95,25 @@ def test_large_clock_differences_are_not_tolerated() -> None:
 
     assert read_access_token(far_future, KEY) is None
     assert read_access_token(long_expired, KEY) is None
+
+
+def test_version_is_carried_in_the_token() -> None:
+    token = create_access_token("42", KEY, timedelta(minutes=5), version=7)
+
+    assert read_access_token(token, KEY) == AccessClaims("42", 7)
+
+
+@pytest.mark.parametrize(
+    "version", ["0", True, 1.5, None], ids=["string", "boolean", "float", "null"]
+)
+def test_token_with_a_bad_version_is_rejected(version: object) -> None:
+    claims = {"sub": "42", "ver": version, "exp": LATER}
+    token = jwt.encode(claims, KEY, algorithm="HS256")
+
+    assert read_access_token(token, KEY) is None
+
+
+def test_token_without_a_version_is_rejected() -> None:
+    token = jwt.encode({"sub": "42", "exp": LATER}, KEY, algorithm="HS256")
+
+    assert read_access_token(token, KEY) is None

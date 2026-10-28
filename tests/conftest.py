@@ -14,11 +14,14 @@ from chemstock.db import get_engine
 from chemstock.main import app
 from chemstock.models import User
 from chemstock.roles import Role
+from chemstock.security import hash_password
 from chemstock.tokens import create_access_token
 
 ROOT = Path(__file__).resolve().parent.parent
 TEST_DB_NAME = "chemstock_test"
 TEST_SECRET_KEY = "test-only-secret-key-do-not-use-in-production"
+TEST_PASSWORD = "a long enough password"
+TEST_PASSWORD_HASH = hash_password(TEST_PASSWORD)  # one hash for all users
 
 
 def _reset_caches() -> None:
@@ -79,7 +82,7 @@ def _auth_headers(role: Role) -> dict[str, str]:
     with Session(get_engine()) as db_session:
         user = User(
             username=f"test-{role.value}",
-            hashed_password="not-a-real-hash",  # tests mint tokens directly
+            hashed_password=TEST_PASSWORD_HASH,  # tests mint tokens directly
             role=role.value,
         )
         db_session.add(user)
