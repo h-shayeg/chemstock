@@ -12,6 +12,7 @@ from pydantic import (
 
 from chemstock.chemistry import is_valid_cas
 from chemstock.compatibility import HazardClass
+from chemstock.permissions import Permission
 from chemstock.roles import Role
 
 
@@ -193,6 +194,8 @@ class UserRead(BaseModel):
     username: str
     role: str
     is_active: bool
+    # What the user may do in user management (see chemstock.permissions).
+    permissions: list[str]
     created_at: datetime
 
 
@@ -231,3 +234,16 @@ class PasswordChange(BaseModel):
 
     current_password: str
     new_password: str
+
+
+class PermissionsUpdate(BaseModel):
+    """The complete set of permissions an admin is allowed (replaces the old set)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    permissions: list[Permission] = Field(max_length=50)
+
+    @field_validator("permissions")
+    @classmethod
+    def remove_duplicates(cls, value: list[Permission]) -> list[Permission]:
+        return sorted(set(value))
