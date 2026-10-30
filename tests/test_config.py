@@ -88,3 +88,27 @@ def test_token_lifetime_defaults_to_30_minutes() -> None:
 def test_token_lifetime_must_be_reasonable(minutes: int) -> None:
     with pytest.raises(ValidationError):
         make_settings(access_token_expire_minutes=minutes)
+
+
+def test_throttling_defaults() -> None:
+    settings = make_settings()
+
+    assert settings.login_max_attempts_per_username == 5
+    assert settings.login_max_attempts_per_ip == 20
+    assert settings.login_lockout_minutes == 15
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("login_max_attempts_per_username", 0),
+        ("login_max_attempts_per_username", 101),
+        ("login_max_attempts_per_ip", 0),
+        ("login_max_attempts_per_ip", 1001),
+        ("login_lockout_minutes", 0),
+        ("login_lockout_minutes", 1441),
+    ],
+)
+def test_throttling_limits_must_be_reasonable(name: str, value: int) -> None:
+    with pytest.raises(ValidationError):
+        make_settings(**{name: value})

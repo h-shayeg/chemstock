@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     secret_key: SecretStr
     access_token_expire_minutes: int = Field(default=30, ge=1, le=1440)
 
+    # Slowing down password guessing (see chemstock.throttle).
+    login_max_attempts_per_username: int = Field(default=5, ge=1, le=100)
+    login_max_attempts_per_ip: int = Field(default=20, ge=1, le=1000)
+    login_lockout_minutes: int = Field(default=15, ge=1, le=1440)
+
     @field_validator("secret_key")
     @classmethod
     def secret_key_must_be_long_enough(cls, value: SecretStr) -> SecretStr:

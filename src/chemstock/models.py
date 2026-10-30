@@ -112,3 +112,18 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class AuthAttempt(Base):
+    """A password guess that was not confirmed yet (see chemstock.throttle)."""
+
+    __tablename__ = "auth_attempts"
+    __table_args__ = (
+        Index("ix_auth_attempts_scope_ip_time", "scope", "ip_address", "attempted_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    scope: Mapped[str] = mapped_column(String(20))  # "login" or "change-password"
+    username: Mapped[str] = mapped_column(String(100))
+    ip_address: Mapped[str] = mapped_column(String(45))
+    attempted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
