@@ -50,6 +50,7 @@ tests/           pytest tests
 - [x] User management API with an owner (create users, change roles, deactivate)
 - [ ] Admin permissions controlled by the owner
 - [x] Users change their own password (older tokens stop working)
+- [x] Rate limiting of failed login and password-change attempts
 - [ ] PubChem integration for hazard (GHS) data, with caching
 - [x] Storage-compatibility checks (hazard classes, rules, `/storage-conflicts`)
 - [x] Expiry alerts: bottles expiring soon or already expired
@@ -100,3 +101,17 @@ command line (the previous owner, if any, becomes an admin):
 
 `POST /auth/change-password` with `current_password` and `new_password`. Afterwards
 every access token issued before the change stops working, so log in again.
+
+### Rate limiting
+
+Failed password guesses are limited, for `POST /auth/login` and for the current
+password in `POST /auth/change-password`: at most 5 per username and client address,
+and 20 per client address in total, within 15 minutes. Beyond that the API answers
+`429` with a `Retry-After` header and does not even check the password, so a correct
+guess during a lockout is refused too. A successful login clears the counter. Limits
+are configurable (`LOGIN_MAX_ATTEMPTS_PER_USERNAME`, `LOGIN_MAX_ATTEMPTS_PER_IP`,
+`LOGIN_LOCKOUT_MINUTES`).
+
+The client address is the one the server sees. Behind a reverse proxy, run uvicorn
+with `--proxy-headers` and `--forwarded-allow-ips` set to the proxy; otherwise all
+users share the proxy's address.
