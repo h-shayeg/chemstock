@@ -7,13 +7,14 @@ from sqlalchemy.orm import Session
 from chemstock.authority import may_assign, may_manage
 from chemstock.db import get_session
 from chemstock.dependencies import CurrentUser, require_role
-from chemstock.models import User
+from chemstock.models import RevokedPermission, User
+from chemstock.permissions import Permission
 from chemstock.roles import Role
-from chemstock.schemas import UserCreate, UserRead, UserUpdate
+from chemstock.schemas import PermissionsUpdate, UserCreate, UserRead, UserUpdate
 from chemstock.users import UserError, UsernameTakenError, create_user
 
-# Only admins and the owner may use this router; the rules below decide who may
-# change whom.
+# Only admins and the owner may use this router. The rules below decide who may
+# change whom (the role hierarchy) and what an admin may do (permissions).
 router = APIRouter(
     prefix="/users",
     tags=["users"],
@@ -36,11 +37,21 @@ def _forbidden(detail: str) -> HTTPException:
     return HTTPException(status.HTTP_403_FORBIDDEN, detail)
 
 
+def _require_permission(actor: User, permission: Permission) -> None:
+    if permission.value not in actor.permissions:
+        raise _forbidden(f"Missing permission: {permission.value}")
+
+
 @router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def register_user(
     payload: UserCreate, actor: CurrentUser, session: SessionDep
 ) -> User:
-    """Create a user. You can only give roles that rank below your own."""
+    """Create a user.
+
+    Needs the `create_users` permission, and you can only give roles that rank
+    below your own.
+    """
+    _require_permission(actor, Permission.CREATE_USERS)
     if not may_assign(Role(actor.role), payload.role):
         raise _forbidden("You cannot create a user with a role this high")
     try:
@@ -48,7 +59,9 @@ def register_user(
     except UsernameTakenError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from None
     except UserError as error:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from None
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)
+        ) from None
 
 
 @router.get("", response_model=list[UserRead])
@@ -72,8 +85,14 @@ def update_user(
 ) -> User:
     """Change the role or the active flag of a user ranking below you.
 
-    Nobody can change their own account. The owner role can never be given.
+    Changing a role needs `change_roles`, and (de)activating needs
+    `deactivate_users`; doing both at once needs both. Nobody can change their
+    own account. The owner role can never be given.
     """
+    if payload.role is not None:
+        _require_permission(actor, Permission.CHANGE_ROLES)
+    if payload.is_active is not None:
+        _require_permission(actor, Permission.DEACTIVATE_USERS)
     target = _get_or_404(session, user_id)
     if target.id == actor.id:
         raise _forbidden("You cannot change your own role or status")
@@ -85,6 +104,40 @@ def update_user(
         target.role = payload.role.value
     if payload.is_active is not None:
         target.is_active = payload.is_active
+    session.commit()
+    session.refresh(target)
+    return target
+
+
+@router.put(
+    "/{user_id}/permissions",
+    response_model=UserRead,
+    dependencies=[Depends(require_role(Role.OWNER))],
+)
+def set_permissions(
+    user_id: UserId, payload: PermissionsUpdate, session: SessionDep
+) -> User:
+    """Set what an admin may do. Only the owner may call this.
+
+    Send the complete list of permissions the admin is allowed to use; it
+    replaces the old list, and an empty list takes everything away. It only
+    applies to admin accounts: the owner always has every permission, and
+    members and viewers cannot manage users at all.
+    """
+    target = _get_or_404(session, user_id)
+    if Role(target.role) is not Role.ADMIN:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Permissions can only be set for admin accounts",
+        )
+    allowed = set(payload.permissions)
+    wanted_revoked = {item.value for item in Permission if item not in allowed}
+    for link in list(target.revoked_links):
+        if link.permission not in wanted_revoked:
+            target.revoked_links.remove(link)
+    already = {link.permission for link in target.revoked_links}
+    for name in sorted(wanted_revoked - already):
+        target.revoked_links.append(RevokedPermission(permission=name))
     session.commit()
     session.refresh(target)
     return target

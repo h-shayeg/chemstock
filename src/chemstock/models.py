@@ -17,10 +17,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from chemstock.compatibility import HazardClass
 from chemstock.db import Base
+from chemstock.permissions import Permission, effective_permissions
 from chemstock.roles import Role
 
 _HAZARD_CLASS_VALUES = ", ".join(f"'{hazard.value}'" for hazard in HazardClass)
 _ROLE_VALUES = ", ".join(f"'{role.value}'" for role in Role)
+_PERMISSION_VALUES = ", ".join(f"'{item.value}'" for item in Permission)
 
 
 class Chemical(Base):
@@ -109,9 +111,25 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(server_default=true())
     # Raised when the password changes; older access tokens then stop working.
     token_version: Mapped[int] = mapped_column(server_default=text("0"))
+    # Permissions taken away from an admin (nothing stored = nothing taken).
+    revoked_links: Mapped[list["RevokedPermission"]] = relationship(
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+    @property
+    def permissions(self) -> list[str]:
+        """What this user may do in user management.
+
+        The owner has everything; an admin has everything except what was taken
+        away; members and viewers have nothing.
+        """
+        revoked = [link.permission for link in self.revoked_links]
+        return [item.value for item in effective_permissions(Role(self.role), revoked)]
 
 
 class AuthAttempt(Base):
@@ -127,3 +145,19 @@ class AuthAttempt(Base):
     username: Mapped[str] = mapped_column(String(100))
     ip_address: Mapped[str] = mapped_column(String(45))
     attempted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class RevokedPermission(Base):
+    """A permission taken away from an admin (see chemstock.permissions)."""
+
+    __tablename__ = "revoked_permissions"
+    __table_args__ = (
+        CheckConstraint(
+            f"permission IN ({_PERMISSION_VALUES})", name="permission_allowed"
+        ),
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    permission: Mapped[str] = mapped_column(String(30), primary_key=True)

@@ -48,7 +48,7 @@ tests/           pytest tests
 - [x] Inventory items (bottles): quantity, storage location, expiry date
 - [x] Authentication: login with JWT access tokens, role-based access (admin / member / viewer)
 - [x] User management API with an owner (create users, change roles, deactivate)
-- [ ] Admin permissions controlled by the owner
+- [x] Admin permissions controlled by the owner (create users, change roles, deactivate users)
 - [x] Users change their own password (older tokens stop working)
 - [x] Rate limiting of failed login and password-change attempts
 - [ ] PubChem integration for hazard (GHS) data, with caching
@@ -115,3 +115,17 @@ are configurable (`LOGIN_MAX_ATTEMPTS_PER_USERNAME`, `LOGIN_MAX_ATTEMPTS_PER_IP`
 The client address is the one the server sees. Behind a reverse proxy, run uvicorn
 with `--proxy-headers` and `--forwarded-allow-ips` set to the proxy; otherwise all
 users share the proxy's address.
+
+### Admin permissions
+
+The owner decides what each admin may do in user management. There are three
+permissions: `create_users`, `change_roles` and `deactivate_users`. A new admin has
+all three. Only the owner changes them, with `PUT /users/{id}/permissions` and the
+full list of what the admin is allowed (an empty list takes everything away). The
+owner always has every permission, and reading users is never restricted. Every user
+is returned with its current `permissions`, also in `GET /auth/me`. Changes take
+effect immediately, and restrictions are remembered if an admin is moved to another
+role and back.
+
+What is stored is the list of permissions that were taken away. So a permission that
+is added in the future is granted to every admin unless its migration says otherwise.

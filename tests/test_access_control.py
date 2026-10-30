@@ -23,6 +23,7 @@ USER_MANAGEMENT = {
     ("GET", "/users"),
     ("GET", "/users/{user_id}"),
     ("PATCH", "/users/{user_id}"),
+    ("PUT", "/users/{user_id}/permissions"),
 }
 
 # (method, path, JSON body, lowest role that may call it).
