@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
+from chemstock import security, users
 from chemstock.config import get_settings
 from chemstock.db import get_engine
 from chemstock.main import app
@@ -125,3 +126,22 @@ def session(clean_database: None) -> Iterator[Session]:
     """A direct database session, for arranging or inspecting test data."""
     with Session(get_engine()) as db_session:
         yield db_session
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _cheap_password_hashing() -> Iterator[None]:
+    """Hash passwords with the cheapest valid Argon2 settings during the tests.
+
+    Argon2 is slow on purpose (about half a second per password with the real
+    settings), which is right for a server but makes login-heavy tests crawl.
+    Verifying a hash uses the settings stored inside that hash, so the dummy hash
+    used for unknown users must be cheap too. tests/test_security.py checks both
+    that this fixture is active and that the real settings are still strong.
+    """
+    cheap = security.make_password_hash(time_cost=1, memory_cost=8, parallelism=1)
+    dummy_hash = cheap.hash(security.DUMMY_PASSWORD)
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(security, "_password_hash", cheap)
+        monkeypatch.setattr(security, "DUMMY_HASH", dummy_hash)
+        monkeypatch.setattr(users, "DUMMY_HASH", dummy_hash)
+        yield

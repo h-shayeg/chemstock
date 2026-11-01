@@ -3,9 +3,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from chemstock import users as users_module
 from chemstock.models import User
 from chemstock.roles import Role
-from chemstock.security import DUMMY_HASH, verify_password
+from chemstock.security import verify_password
 from chemstock.users import (
     UserError,
     UsernameTakenError,
@@ -116,7 +117,7 @@ def test_unknown_user_still_costs_one_hash_verification(
     monkeypatch.setattr("chemstock.users.verify_password", spy)
 
     assert authenticate_user(session, "ghost", PASSWORD) is None
-    assert calls == [DUMMY_HASH]
+    assert calls == [users_module.DUMMY_HASH]
 
 
 def test_database_rejects_unknown_role(session: Session) -> None:
