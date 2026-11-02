@@ -1,0 +1,33 @@
+{
+  "Record": {
+    "RecordType": "CID",
+    "RecordNumber": 5988,
+    "RecordTitle": "Sucrose",
+    "Section": [
+      {
+        "TOCHeading": "Safety and Hazards",
+        "Description": "...",
+        "Section": [
+          {
+            "TOCHeading": "Hazards Identification",
+            "Description": "...",
+            "Section": [
+              {
+                "TOCHeading": "GHS Classification",
+                "Description": "...",
+                "Information": [
+                  {"ReferenceNumber": 43, "Name": "Note", "Value": {"StringWithMarkup": [{"String": "This chemical does not meet GHS hazard criteria for 95.7% (423 of 442) of all reports.", "Markup": [{"Start": 0, "Length": 86, "Type": "Italics"}]}]}},
+                  {"ReferenceNumber": 43, "Name": "GHS Hazard Statements", "Value": {"StringWithMarkup": [{"String": "Not Classified"}, {"String": "Reported as not meeting GHS hazard criteria by 423 of 442 companies (only 4.3% companies provided GHS information). For more detailed information, please visit ECHA C&L website.", "Markup": [{"Start": 161, "Length": 20, "URL": "https://chem.echa.europa.eu/substance-search?searchText=200-334-9"}]}]}},
+                  {"ReferenceNumber": 43, "Name": "ECHA C&L Notifications Summary", "Value": {"StringWithMarkup": [{"String": "Aggregated GHS information provided per 442 reports by companies from 8 notifications to the ECHA C&L Inventory."}, {"String": "Reported as not meeting GHS hazard criteria per 423 of 442 reports by companies."}]}}
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "Reference": [
+      {"ReferenceNumber": 43, "SourceName": "European Chemicals Agency (ECHA)", "SourceID": "43", "Name": "Sucrose (EC: 200-334-9)", "Description": "...", "URL": "https://example.org", "LicenseNote": "...", "LicenseURL": "https://example.org", "ANID": 301, "SortOrder": 1}
+    ]
+  }
+}

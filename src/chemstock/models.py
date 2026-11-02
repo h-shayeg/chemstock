@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import (
     CheckConstraint,
@@ -13,10 +14,12 @@ from sqlalchemy import (
     text,
     true,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from chemstock.compatibility import HazardClass
 from chemstock.db import Base
+from chemstock.ghs import GhsStatus
 from chemstock.permissions import Permission, effective_permissions
 from chemstock.roles import Role
 from chemstock.stock import UNITS
@@ -25,6 +28,7 @@ _HAZARD_CLASS_VALUES = ", ".join(f"'{hazard.value}'" for hazard in HazardClass)
 _ROLE_VALUES = ", ".join(f"'{role.value}'" for role in Role)
 _PERMISSION_VALUES = ", ".join(f"'{item.value}'" for item in Permission)
 _UNIT_VALUES = ", ".join(f"'{unit}'" for unit in UNITS)
+_GHS_STATUS_VALUES = ", ".join(f"'{status.value}'" for status in GhsStatus)
 
 
 class Chemical(Base):
@@ -178,3 +182,23 @@ class RevokedPermission(Base):
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
     permission: Mapped[str] = mapped_column(String(30), primary_key=True)
+
+
+class GhsCacheEntry(Base):
+    """What PubChem said about one CAS number (see chemstock.ghs_cache).
+
+    Kept so PubChem is asked once per CAS number and cache period, not on every
+    request, and so the last answer can still be shown when PubChem is down.
+    """
+
+    __tablename__ = "ghs_cache"
+    __table_args__ = (
+        CheckConstraint(f"status IN ({_GHS_STATUS_VALUES})", name="status_allowed"),
+    )
+
+    cas_number: Mapped[str] = mapped_column(String(12), primary_key=True)
+    status: Mapped[str] = mapped_column(String(20))
+    pubchem_cid: Mapped[int | None]
+    # The parsed GHS data (chemstock.ghs.GhsData as JSON), not PubChem's raw answer.
+    data: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

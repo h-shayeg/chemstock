@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 
 
 def get_today() -> date:
@@ -8,3 +8,8 @@ def get_today() -> date:
     Note: this is the server's local date (UTC inside Docker).
     """
     return date.today()
+
+
+def get_now() -> datetime:
+    """Return the current time in UTC (a FastAPI dependency, like get_today)."""
+    return datetime.now(UTC)

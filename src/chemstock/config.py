@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     login_max_attempts_per_ip: int = Field(default=20, ge=1, le=1000)
     login_lockout_minutes: int = Field(default=15, ge=1, le=1440)
 
+    # GHS hazard data from PubChem (see chemstock.pubchem).
+    pubchem_base_url: str = "https://pubchem.ncbi.nlm.nih.gov/rest"
+    pubchem_timeout_seconds: float = Field(default=10, gt=0, le=60)
+    # How long an answer from PubChem is reused before asking again.
+    pubchem_cache_days: int = Field(default=30, ge=1, le=365)
+
     @field_validator("secret_key")
     @classmethod
     def secret_key_must_be_long_enough(cls, value: SecretStr) -> SecretStr:
