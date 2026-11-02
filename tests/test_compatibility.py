@@ -181,3 +181,28 @@ def test_rule_table_is_well_formed() -> None:
 def test_every_hazard_class_has_a_description() -> None:
     assert set(HAZARD_CLASS_DESCRIPTIONS) == set(HazardClass)
     assert all(HAZARD_CLASS_DESCRIPTIONS.values())
+
+
+def test_no_storage_hazard_is_compatible_with_classified_chemicals() -> None:
+    harmless = [H.NO_STORAGE_HAZARD]
+    for other in ([H.FLAMMABLE], [H.INORGANIC_ACID], [H.NO_STORAGE_HAZARD]):
+        for a, b in ((harmless, other), (other, harmless)):
+            result = assess_pair(a, b)
+
+            assert result.status is PairStatus.NO_CONFLICT
+
+
+def test_an_unreviewed_chemical_still_needs_review_next_to_a_harmless_one() -> None:
+    for unreviewed in ([], [H.UNCLASSIFIED]):
+        result = assess_pair([H.NO_STORAGE_HAZARD], unreviewed)
+
+        assert result.status is PairStatus.REVIEW_REQUIRED
+
+
+def test_contradictory_data_stays_on_the_safe_side() -> None:
+    # The API never stores this combination; if it ever appeared, the real
+    # hazard must still be reported.
+    result = assess_pair([H.NO_STORAGE_HAZARD, H.OXIDIZER], [H.FLAMMABLE])
+
+    assert result.status is PairStatus.CONFLICT
+    assert result.severity == 1

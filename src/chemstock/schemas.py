@@ -11,7 +11,7 @@ from pydantic import (
 )
 
 from chemstock.chemistry import is_valid_cas
-from chemstock.compatibility import HazardClass
+from chemstock.compatibility import EXCLUSIVE_CLASSES, HazardClass
 from chemstock.permissions import Permission
 from chemstock.roles import Role
 
@@ -136,10 +136,11 @@ class HazardClassesUpdate(BaseModel):
     @classmethod
     def remove_duplicates(cls, value: list[HazardClass]) -> list[HazardClass]:
         unique = sorted(set(value))
-        if HazardClass.UNCLASSIFIED in unique and len(unique) > 1:
-            raise ValueError(
-                "'unclassified' cannot be combined with other hazard classes"
-            )
+        for marker in sorted(EXCLUSIVE_CLASSES):
+            if marker in unique and len(unique) > 1:
+                raise ValueError(
+                    f"'{marker.value}' cannot be combined with other hazard classes"
+                )
         return unique
 
 

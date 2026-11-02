@@ -164,3 +164,9 @@ def test_every_conflicting_pair_is_reported() -> None:
 
     # acid-base and acid-organic base conflict; the two bases do not.
     assert [(c.first.item_id, c.second.item_id) for c in result] == [(1, 2), (1, 3)]
+
+
+def test_a_chemical_checked_as_harmless_needs_no_review() -> None:
+    bottles = [bottle(1, 1, ("no_storage_hazard",)), bottle(2, 2, ("flammable",))]
+
+    assert find_storage_conflicts(bottles) == []

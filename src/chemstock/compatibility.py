@@ -32,6 +32,9 @@ class HazardClass(StrEnum):
     ISOLATE = "isolate"
     # "We do not know yet". It never means "safe".
     UNCLASSIFIED = "unclassified"
+    # "Checked by a person: nothing about it matters for storage separation".
+    # It is never suggested automatically.
+    NO_STORAGE_HAZARD = "no_storage_hazard"
 
 
 H = HazardClass
@@ -69,8 +72,15 @@ HAZARD_CLASS_DESCRIPTIONS: dict[HazardClass, str] = {
     H.UNCLASSIFIED: (
         "No hazard classification entered yet. This does not mean it is safe."
     ),
+    H.NO_STORAGE_HAZARD: (
+        "Checked by a person: nothing about this chemical matters for storage "
+        "separation (water, for example). Only a person can choose this class."
+    ),
 }
 
+# These two say something about the chemical as a whole, so they cannot be
+# combined with any other class.
+EXCLUSIVE_CLASSES = frozenset({H.UNCLASSIFIED, H.NO_STORAGE_HAZARD})
 ACIDS = frozenset({H.OXIDIZING_ACID, H.INORGANIC_ACID, H.ORGANIC_ACID})
 BASES = frozenset({H.INORGANIC_BASE, H.ORGANIC_BASE})
 ALL_CLASSES = frozenset(HazardClass)

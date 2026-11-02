@@ -173,3 +173,18 @@ def test_moving_a_bottle_resolves_the_conflict(client: TestClient) -> None:
 
     assert moved.status_code == 200
     assert client.get("/storage-conflicts").json() == []
+
+
+def test_a_chemical_checked_as_harmless_no_longer_needs_review(
+    client: TestClient,
+) -> None:
+    water = _chemical(client, "Water", ["no_storage_hazard"])
+    acetone = _chemical(client, "Acetone", ["flammable"])
+    _bottle(client, water, "Shelf A")
+    _bottle(client, acetone, "Shelf A")
+    assert client.get("/storage-conflicts").json() == []
+
+    _bottle(client, _chemical(client, "Mystery powder"), "Shelf A")
+
+    reports = client.get("/storage-conflicts").json()
+    assert [report["status"] for report in reports] == ["review_required"] * 2
