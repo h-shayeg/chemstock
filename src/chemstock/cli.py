@@ -3,15 +3,18 @@
 Examples:
     python -m chemstock.cli create-user alice --role admin
     python -m chemstock.cli set-owner alice
+    python -m chemstock.cli seed-demo
 """
 
 import argparse
 import sys
+from datetime import date
 from getpass import getpass
 
 from sqlalchemy.orm import Session
 
 from chemstock.db import get_engine
+from chemstock.demo import DemoError, seed_demo
 from chemstock.roles import Role
 from chemstock.users import UserError, create_user, set_owner
 
@@ -45,6 +48,21 @@ def _set_owner(args: argparse.Namespace) -> int:
     return 0
 
 
+def _seed_demo(args: argparse.Namespace) -> int:
+    with Session(get_engine()) as session:
+        try:
+            summary = seed_demo(session, date.today())
+        except DemoError as error:
+            print(f"Error: {error}", file=sys.stderr)
+            return 1
+    print(
+        f"Added {summary.chemicals} chemicals and {summary.bottles} bottles. "
+        "Try GET /storage-conflicts, /inventory-items/expiring and "
+        "/chemicals/low-stock."
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m chemstock.cli")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -64,10 +82,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     owner.add_argument("username")
 
+    commands.add_parser(
+        "seed-demo", help="fill an empty database with example chemicals and bottles"
+    )
+
     args = parser.parse_args(argv)
     if args.command == "create-user":
         return _create_user(args)
-    return _set_owner(args)
+    if args.command == "set-owner":
+        return _set_owner(args)
+    return _seed_demo(args)
 
 
 if __name__ == "__main__":
