@@ -14,6 +14,7 @@ from chemstock.config import get_settings
 from chemstock.db import get_engine
 from chemstock.main import app
 from chemstock.models import User
+from chemstock.pubchem import PubChemClient, get_pubchem_client
 from chemstock.roles import Role
 from chemstock.security import hash_password
 from chemstock.tokens import create_access_token
@@ -72,7 +73,7 @@ def clean_database(_test_database: None) -> None:
         conn.execute(
             text(
                 "TRUNCATE TABLE inventory_items, chemical_hazard_classes, chemicals, "
-                "users, revoked_permissions, auth_attempts "
+                "users, revoked_permissions, auth_attempts, ghs_cache "
                 "RESTART IDENTITY"
             )
         )
@@ -145,3 +146,18 @@ def _cheap_password_hashing() -> Iterator[None]:
         monkeypatch.setattr(security, "DUMMY_HASH", dummy_hash)
         monkeypatch.setattr(users, "DUMMY_HASH", dummy_hash)
         yield
+
+
+def _no_network(url: str) -> tuple[int, bytes]:
+    raise OSError(f"tests must not use the network (tried {url})")
+
+
+@pytest.fixture(autouse=True)
+def _offline_pubchem() -> Iterator[None]:
+    """Never call the real PubChem from tests: it behaves as if unreachable.
+
+    Tests that need PubChem answers install their own fake (test_ghs_api.py).
+    """
+    app.dependency_overrides[get_pubchem_client] = lambda: PubChemClient(_no_network)
+    yield
+    app.dependency_overrides.pop(get_pubchem_client, None)

@@ -36,6 +36,7 @@ ENDPOINTS: list[tuple[str, str, dict[str, object] | None, Role]] = [
     ("GET", "/chemicals/{chemical_id}", None, VIEWER),
     ("PATCH", "/chemicals/{chemical_id}", {"name": "Aqua"}, MEMBER),
     ("DELETE", "/chemicals/{chemical_id}", None, MEMBER),
+    ("GET", "/chemicals/{chemical_id}/ghs", None, VIEWER),
     (
         "PUT",
         "/chemicals/{chemical_id}/hazard-classes",

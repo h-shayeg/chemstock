@@ -1,0 +1,40 @@
+{
+  "Record": {
+    "RecordType": "CID",
+    "RecordNumber": 180,
+    "RecordTitle": "Acetone",
+    "Section": [
+      {
+        "TOCHeading": "Safety and Hazards",
+        "Description": "...",
+        "Section": [
+          {
+            "TOCHeading": "Hazards Identification",
+            "Description": "...",
+            "Section": [
+              {
+                "TOCHeading": "GHS Classification",
+                "Description": "...",
+                "Information": [
+                  {"ReferenceNumber": 178, "Name": "Pictogram(s)", "Value": {"StringWithMarkup": [{"String": "  ", "Markup": [{"Start": 0, "Length": 1, "URL": "https://pubchem.ncbi.nlm.nih.gov/images/ghs/GHS02.svg", "Type": "Icon", "Extra": "Flammable"}, {"Start": 1, "Length": 1, "URL": "https://pubchem.ncbi.nlm.nih.gov/images/ghs/GHS07.svg", "Type": "Icon", "Extra": "Irritant"}]}]}},
+                  {"ReferenceNumber": 178, "Name": "Signal", "Value": {"StringWithMarkup": [{"String": "Danger", "Markup": [{"Start": 0, "Length": 6, "Type": "Color", "Extra": "GHSDanger"}]}]}},
+                  {"ReferenceNumber": 178, "Name": "GHS Hazard Statements", "Value": {"StringWithMarkup": [{"String": "H225: Highly Flammable liquid and vapor [Danger Flammable liquids]", "Markup": [{"Start": 0, "Length": 4, "URL": "https://pubchem.ncbi.nlm.nih.gov/ghs/#H225"}, {"Start": 41, "Length": 6, "Type": "Color", "Extra": "GHSDanger"}]}, {"String": "H319: Causes serious eye irritation [Warning Serious eye damage/eye irritation]", "Markup": [{"Start": 0, "Length": 4, "URL": "https://pubchem.ncbi.nlm.nih.gov/ghs/#H319"}, {"Start": 37, "Length": 7, "Type": "Color", "Extra": "GHSWarning"}]}, {"String": "H336: May cause drowsiness or dizziness [Warning Specific target organ toxicity, single exposure; Narcotic effects]", "Markup": [{"Start": 0, "Length": 4, "URL": "https://pubchem.ncbi.nlm.nih.gov/ghs/#H336"}, {"Start": 41, "Length": 7, "Type": "Color", "Extra": "GHSWarning"}]}]}},
+                  {"ReferenceNumber": 178, "Name": "Precautionary Statement Codes", "Value": {"StringWithMarkup": [{"String": "P210, P233, P240, P241, P242, P243, P261"}]}},
+                  {"ReferenceNumber": 88, "Name": "Note", "Value": {"StringWithMarkup": [{"String": "This chemical does not meet GHS hazard criteria for < 0.1% (2  of 5005) of reports.", "Markup": [{"Start": 0, "Length": 86, "Type": "Italics"}]}]}},
+                  {"ReferenceNumber": 88, "Name": "Pictogram(s)", "Value": {"StringWithMarkup": [{"String": "  ", "Markup": [{"Start": 0, "Length": 1, "URL": "https://pubchem.ncbi.nlm.nih.gov/images/ghs/GHS02.svg", "Type": "Icon", "Extra": "Flammable"}, {"Start": 1, "Length": 1, "URL": "https://pubchem.ncbi.nlm.nih.gov/images/ghs/GHS07.svg", "Type": "Icon", "Extra": "Irritant"}]}]}},
+                  {"ReferenceNumber": 88, "Name": "Signal", "Value": {"StringWithMarkup": [{"String": "Danger", "Markup": [{"Start": 0, "Length": 6, "Type": "Color", "Extra": "GHSDanger"}]}]}},
+                  {"ReferenceNumber": 88, "Name": "GHS Hazard Statements", "Value": {"StringWithMarkup": [{"String": "H225 (> 99.9%): Highly Flammable liquid and vapor [Danger Flammable liquids]", "Markup": [{"Start": 0, "Length": 4, "URL": "https://pubchem.ncbi.nlm.nih.gov/ghs/#H225"}, {"Start": 51, "Length": 6, "Type": "Color", "Extra": "GHSDanger"}]}, {"String": "H319 (> 99.9%): Causes serious eye irritation [Warning Serious eye damage/eye irritation]", "Markup": [{"Start": 0, "Length": 4, "URL": "https://pubchem.ncbi.nlm.nih.gov/ghs/#H319"}, {"Start": 47, "Length": 7, "Type": "Color", "Extra": "GHSWarning"}]}, {"String": "H336 (98.7%): May cause drowsiness or dizziness [Warning Specific target organ toxicity, single exposure; Narcotic effects]", "Markup": [{"Start": 0, "Length": 4, "URL": "https://pubchem.ncbi.nlm.nih.gov/ghs/#H336"}, {"Start": 49, "Length": 7, "Type": "Color", "Extra": "GHSWarning"}]}]}},
+                  {"ReferenceNumber": 88, "Name": "ECHA C&L Notifications Summary", "Value": {"StringWithMarkup": [{"String": "Aggregated GHS information provided per 5005 reports by companies from 39 notifications to the ECHA C&L Inventory."}]}}
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "Reference": [
+      {"ReferenceNumber": 178, "SourceName": "Regulation (EC) No 1272/2008 of the European Parliament and of the Council", "SourceID": "178", "Name": "acetone; propan-2-one; propanone", "Description": "...", "URL": "https://example.org", "LicenseNote": "...", "LicenseURL": "https://example.org", "ANID": 1246, "SortOrder": 1},
+      {"ReferenceNumber": 88, "SourceName": "European Chemicals Agency (ECHA)", "SourceID": "88", "Name": "Acetone (EC: 200-662-2)", "Description": "...", "URL": "https://example.org", "LicenseNote": "...", "LicenseURL": "https://example.org", "ANID": 616, "SortOrder": 1}
+    ]
+  }
+}

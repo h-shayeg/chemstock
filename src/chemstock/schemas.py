@@ -116,6 +116,40 @@ class LowStockRead(BaseModel):
     uncounted_item_count: int
 
 
+class PictogramRead(BaseModel):
+    """A GHS pictogram, for example GHS02 "Flammable"."""
+
+    code: str
+    name: str
+
+
+class HazardStatementRead(BaseModel):
+    """A GHS hazard statement, for example H225 (one code or a combination)."""
+
+    code: str
+    statement: str
+
+
+class GhsRead(BaseModel):
+    """GHS hazard data of a chemical, from PubChem."""
+
+    chemical_id: int
+    cas_number: str
+    status: Literal["classified", "not_classified", "no_data", "not_found"]
+    pubchem_cid: int | None
+    pubchem_url: str | None
+    signal_word: Literal["Danger", "Warning"] | None
+    pictograms: list[PictogramRead]
+    hazard_statements: list[HazardStatementRead]
+    # Only a suggestion for a person; never applied automatically.
+    suggested_hazard_classes: list[HazardClass]
+    pubchem_notes: list[str]
+    sources: list[str]
+    fetched_at: datetime
+    # True when PubChem could not be reached and an older answer is shown.
+    stale: bool
+
+
 class InventoryItemCreate(BaseModel):
     """Data a client sends to register a bottle."""
 

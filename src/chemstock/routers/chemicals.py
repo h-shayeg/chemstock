@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Annotated
 
@@ -7,20 +8,30 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from chemstock.clock import get_now
+from chemstock.config import get_settings
 from chemstock.db import get_session
+from chemstock.ghs import suggest_hazard_classes
+from chemstock.ghs_cache import get_ghs
 from chemstock.models import Chemical, ChemicalHazardClass, InventoryItem
+from chemstock.pubchem import PubChemClient, PubChemUnavailable, get_pubchem_client
 from chemstock.schemas import (
     ChemicalCreate,
     ChemicalRead,
     ChemicalUpdate,
+    GhsRead,
     HazardClassesUpdate,
+    HazardStatementRead,
     LowStockRead,
+    PictogramRead,
 )
 from chemstock.stock import Amount, StockedChemical, find_low_stock
 
 router = APIRouter(prefix="/chemicals", tags=["chemicals"])
 
 SessionDep = Annotated[Session, Depends(get_session)]
+PubChemDep = Annotated[PubChemClient, Depends(get_pubchem_client)]
+NowDep = Annotated[datetime, Depends(get_now)]
 # Upper bound = largest value of a PostgreSQL "integer" column.
 ChemicalId = Annotated[int, Path(ge=1, le=2_147_483_647)]
 
@@ -151,3 +162,64 @@ def set_hazard_classes(
     _commit(session, "Hazard classes were changed at the same time; try again")
     session.refresh(chemical)
     return chemical
+
+
+@router.get("/{chemical_id}/ghs", response_model=GhsRead)
+def get_chemical_ghs(
+    chemical_id: ChemicalId, session: SessionDep, pubchem: PubChemDep, now: NowDep
+) -> GhsRead:
+    """GHS hazard data of a chemical from PubChem, found by its CAS number.
+
+    PubChem collects classifications from several sources; this shows the union
+    of what they report. Answers are cached (`PUBCHEM_CACHE_DAYS`, default 30),
+    and if PubChem cannot be reached an older answer is shown with `stale: true`.
+
+    `suggested_hazard_classes` is only a suggestion and is never applied: a
+    person decides, with `PUT /chemicals/{chemical_id}/hazard-classes`. Acids,
+    bases, active metals and halogenated solvents cannot be recognized from GHS
+    codes, so they are never suggested. Always check the Safety Data Sheet.
+
+    - `409`: the chemical has no CAS number.
+    - `503`: PubChem is not reachable and nothing was stored yet.
+    """
+    chemical = _get_or_404(session, chemical_id)
+    if chemical.cas_number is None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Chemical has no CAS number; PubChem is searched by CAS number",
+        )
+    max_age = timedelta(days=get_settings().pubchem_cache_days)
+    try:
+        result = get_ghs(session, pubchem, chemical.cas_number, now, max_age)
+    except PubChemUnavailable:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "PubChem is not reachable right now; try again later",
+            headers={"Retry-After": "60"},
+        ) from None
+    data = result.data
+    return GhsRead(
+        chemical_id=chemical.id,
+        cas_number=chemical.cas_number,
+        status=result.status.value,
+        pubchem_cid=result.cid,
+        pubchem_url=(
+            f"https://pubchem.ncbi.nlm.nih.gov/compound/{result.cid}"
+            if result.cid is not None
+            else None
+        ),
+        signal_word=data.signal_word if data else None,
+        pictograms=[
+            PictogramRead(code=p.code, name=p.name)
+            for p in (data.pictograms if data else ())
+        ],
+        hazard_statements=[
+            HazardStatementRead(code=s.code, statement=s.statement)
+            for s in (data.hazard_statements if data else ())
+        ],
+        suggested_hazard_classes=suggest_hazard_classes(data.codes) if data else [],
+        pubchem_notes=list(data.notes) if data else [],
+        sources=list(data.sources) if data else [],
+        fetched_at=result.fetched_at,
+        stale=result.stale,
+    )

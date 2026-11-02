@@ -51,7 +51,7 @@ tests/           pytest tests
 - [x] Admin permissions controlled by the owner (create users, change roles, deactivate users)
 - [x] Users change their own password (older tokens stop working)
 - [x] Rate limiting of failed login and password-change attempts
-- [ ] PubChem integration for hazard (GHS) data, with caching
+- [x] PubChem integration for hazard (GHS) data, with caching
 - [x] Storage-compatibility checks (hazard classes, rules, `/storage-conflicts`)
 - [x] Expiry alerts: bottles expiring soon or already expired
 - [x] Low-stock alerts: chemicals at or below their reorder level
@@ -81,6 +81,36 @@ to 0.5 L. Mass and volume cannot be added without the density, so a bottle in a
 unit of the other kind (grams for a level in litres) is left out of the total and
 counted in `uncounted_item_count`. Such a bottle can cause a false alarm, but it
 never hides a real one.
+
+## Hazard data from PubChem
+
+`GET /chemicals/{id}/ghs` looks up the chemical's CAS number in
+[PubChem](https://pubchem.ncbi.nlm.nih.gov/) and returns its GHS classification:
+hazard statements (H codes), pictograms, signal word and the sources that
+classified it. PubChem collects classifications from several sources; ChemStock
+shows the union of what they report, because for storage a missed hazard is worse
+than one too many.
+
+The answer also has `suggested_hazard_classes` for the storage-compatibility checks.
+They are only suggestions: nothing changes until a person sets the classes with
+`PUT /chemicals/{id}/hazard-classes`.
+
+| GHS codes | Suggested class |
+|---|---|
+| H220 to H228 | `flammable` |
+| H270, H271, H272 | `oxidizer` |
+| H260, H261, EUH014, EUH029 | `water_reactive` |
+| EUH031, EUH032 | `acid_gas_generator` |
+| H200 to H208, H240, H241, H250 | `isolate` |
+
+Acids, bases, active metals and halogenated solvents cannot be recognized from GHS
+codes (a corrosive H314 can be either an acid or a base), so they are never
+suggested, and neither is `no_storage_hazard`.
+
+Answers are stored in the database for `PUBCHEM_CACHE_DAYS` days (default 30), so
+PubChem is asked once per CAS number and period. If PubChem cannot be reached, the
+last stored answer is returned with `"stale": true`; if nothing is stored yet, the
+API answers `503`. The tests never use the network.
 
 ## Authentication
 
