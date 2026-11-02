@@ -2,59 +2,129 @@
 
 [![CI](https://github.com/h-shayeg/chemstock/actions/workflows/ci.yml/badge.svg)](https://github.com/h-shayeg/chemstock/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-Backend API for tracking laboratory chemicals, storage locations and hazard data,
-with storage-compatibility checks. Built with FastAPI and Docker.
+A backend API for laboratory chemical inventories. It keeps track of chemicals and
+their bottles, warns when incompatible chemicals are stored together, when bottles
+expire and when stock runs low, and pulls GHS hazard data from PubChem.
 
-> **Status:** early development. See the [roadmap](#roadmap) for what is done and what is planned.
+Built with FastAPI, PostgreSQL and Docker, and covered by more than 650 tests that
+run on every push.
 
-## Quick start
+## Features
 
-### With Docker
+- **Chemical catalog**: name, formula and CAS number (with check-digit validation),
+  plus storage hazard classes such as `flammable`, `oxidizer` or `inorganic_acid`.
+- **Inventory of bottles**: quantity and unit, storage location and expiry date.
+- **Storage-compatibility checks**: every pair of bottles in the same place that
+  should be stored apart, with a severity and the reasons. Missing hazard data is
+  reported as `review_required`, never as safe.
+- **Expiry alerts**: bottles that expire soon or have already expired.
+- **Low-stock alerts**: chemicals whose bottles add up to their reorder level or
+  less, with exact unit conversion (mg, g, kg, mL, L).
+- **GHS hazard data from PubChem**: hazard statements, pictograms and signal word,
+  cached in the database, with suggested hazard classes that a person confirms.
+- **Authentication and roles**: JWT access tokens, Argon2 password hashing, four
+  roles (viewer, member, admin, owner), admin permissions controlled by the owner,
+  password changes that revoke old tokens, and rate limiting of password guessing.
+
+## Tech stack
+
+Python 3.12+, FastAPI, Pydantic v2, SQLAlchemy 2.0, PostgreSQL 17, Alembic, PyJWT,
+Argon2 (pwdlib), pytest, Ruff, Docker Compose and GitHub Actions (tests on Python
+3.12 and 3.13 against a real PostgreSQL database).
+
+## Design decisions
+
+- **Domain logic is pure Python.** Storage rules, unit conversion and GHS parsing
+  (`compatibility.py`, `storage.py`, `stock.py`, `ghs.py`) know nothing about HTTP or
+  the database, so they are easy to read and to test.
+- **Safe by default.** Unknown data is never treated as harmless, suggestions are
+  never applied automatically, and only a person can mark a chemical as having no
+  storage hazard.
+- **Rules are enforced twice.** The API validates input, and the database has CHECK
+  constraints for the same rules (units, roles, a reorder level with its unit, at most
+  one owner), so bad data cannot get in another way.
+- **Protected by default.** Whole routers need a login, and a test compares the real
+  API with the documented access table, so a new endpoint cannot ship unprotected.
+  Unknown usernames take as long to check as wrong passwords, and validation errors
+  never echo a submitted password.
+- **Honest tests.** They run against PostgreSQL (not SQLite), freeze the clock where
+  dates matter, and never use the network: PubChem is replaced by fakes shaped like
+  its real answers.
+
+## Try it with Docker
 
 ```bash
-cp .env.example .env        # optional: set PIP_INDEX_URL to a PyPI mirror
-docker compose up --build
-curl http://localhost:8000/health
+cp .env.example .env
+sed -i "s/^SECRET_KEY=$/SECRET_KEY=$(openssl rand -hex 32)/" .env   # signs login tokens
+docker compose up --build -d
+docker compose exec api python -m chemstock.cli create-user alice --role admin  # asks for a password
+docker compose exec api python -m chemstock.cli seed-demo                       # example lab data
 ```
 
-### Local development
+Open <http://localhost:8000/docs>, click **Authorize** and log in as `alice`. Then
+try `GET /storage-conflicts`, `GET /inventory-items/expiring`,
+`GET /chemicals/low-stock`, and `GET /chemicals/3/ghs` (toluene, which has no hazard
+classes yet: PubChem suggests `flammable`).
+
+`seed-demo` only fills an empty database. Stop everything with `docker compose down`
+(add `-v` to delete the data too).
+
+## Local development
+
+Create `.env` as shown above, then:
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
+docker compose up -d db          # PostgreSQL on localhost:5433
+alembic upgrade head
 pytest
 ruff check .
 uvicorn chemstock.main:app --reload
 ```
 
-Interactive API docs are available at `http://localhost:8000/docs`.
+The tests create and use their own database (`chemstock_test`), never the
+development one.
+
+## API overview
+
+| Endpoint | What it does |
+|---|---|
+| `POST /auth/login`, `GET /auth/me`, `POST /auth/change-password` | log in, who am I, change password |
+| `/users`, `PUT /users/{id}/permissions` | user management (admins and the owner) |
+| `/chemicals` (`GET`, `POST`, `PATCH`, `DELETE`) | the chemical catalog |
+| `PUT /chemicals/{id}/hazard-classes` | set the hazard classes of a chemical |
+| `GET /chemicals/{id}/ghs` | GHS hazard data from PubChem, with suggestions |
+| `GET /chemicals/low-stock` | chemicals at or below their reorder level |
+| `/inventory-items` (`GET`, `POST`, `PATCH`, `DELETE`) | bottles |
+| `GET /inventory-items/expiring` | bottles that expire soon or have expired |
+| `GET /storage-conflicts` | bottles stored together that should be apart |
+| `GET /hazard-classes` | every hazard class and what it means |
+| `GET /health` | health check (no login needed) |
+
+The full, interactive documentation is generated by FastAPI at `/docs`.
 
 ## Project structure
 
 ```text
-src/chemstock/   application code
-tests/           pytest tests
+src/chemstock/
+  main.py            the FastAPI app
+  routers/           HTTP endpoints, one module per resource
+  models.py          database tables (SQLAlchemy)
+  schemas.py         request and response models (Pydantic)
+  compatibility.py   storage rules between hazard classes
+  storage.py         finds conflicting bottles in the same location
+  stock.py           unit conversion and low-stock detection
+  ghs.py             reads PubChem's GHS data, suggests hazard classes
+  pubchem.py         small HTTP client for PubChem
+  ghs_cache.py       caches PubChem answers in the database
+  users.py, security.py, tokens.py, permissions.py, throttle.py   accounts and login
+  cli.py, demo.py    command line tools and example data
+migrations/          Alembic database migrations
+tests/               pytest tests (and sample PubChem answers in tests/data)
 ```
-
-## Roadmap
-
-- [x] Project skeleton and tooling (ruff, pytest)
-- [x] Health check endpoint
-- [x] Docker and Docker Compose
-- [x] CI with GitHub Actions
-- [x] PostgreSQL, SQLAlchemy and Alembic migrations
-- [x] Chemical catalog CRUD (name, CAS number, formula)
-- [x] Inventory items (bottles): quantity, storage location, expiry date
-- [x] Authentication: login with JWT access tokens, role-based access (admin / member / viewer)
-- [x] User management API with an owner (create users, change roles, deactivate)
-- [x] Admin permissions controlled by the owner (create users, change roles, deactivate users)
-- [x] Users change their own password (older tokens stop working)
-- [x] Rate limiting of failed login and password-change attempts
-- [x] PubChem integration for hazard (GHS) data, with caching
-- [x] Storage-compatibility checks (hazard classes, rules, `/storage-conflicts`)
-- [x] Expiry alerts: bottles expiring soon or already expired
-- [x] Low-stock alerts: chemicals at or below their reorder level
 
 ## Safety note
 
@@ -178,3 +248,7 @@ role and back.
 
 What is stored is the list of permissions that were taken away. So a permission that
 is added in the future is granted to every admin unless its migration says otherwise.
+
+## License
+
+[MIT](LICENSE), by Hadi Shayeg ([@h-shayeg](https://github.com/h-shayeg)).
