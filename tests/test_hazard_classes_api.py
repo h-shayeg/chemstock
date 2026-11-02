@@ -146,3 +146,49 @@ def test_database_rejects_unknown_hazard_class(
 
     with pytest.raises(IntegrityError):
         session.commit()
+
+
+def test_a_person_can_mark_a_chemical_as_having_no_storage_hazard(
+    client: TestClient,
+) -> None:
+    response = _put(client, _chemical(client, "Water"), ["no_storage_hazard"])
+
+    assert response.status_code == 200
+    assert response.json()["hazard_classes"] == ["no_storage_hazard"]
+
+
+@pytest.mark.parametrize(
+    "classes",
+    [["no_storage_hazard", "flammable"], ["no_storage_hazard", "unclassified"]],
+    ids=["with-a-real-class", "with-unclassified"],
+)
+def test_no_storage_hazard_cannot_be_combined(
+    client: TestClient, classes: list[str]
+) -> None:
+    chemical_id = _chemical(client)
+    _put(client, chemical_id, ["flammable"])
+
+    assert _put(client, chemical_id, classes).status_code == 422
+
+    stored = client.get(f"/chemicals/{chemical_id}").json()
+    assert stored["hazard_classes"] == ["flammable"]
+
+
+def test_database_accepts_every_hazard_class(
+    client: TestClient, session: Session
+) -> None:
+    # Alembic does not notice changes of CHECK constraints. If a class is added to
+    # the enum without a hand-written migration, this test fails.
+    chemical_id = _chemical(client)
+    session.add_all(
+        ChemicalHazardClass(chemical_id=chemical_id, hazard_class=item.value)
+        for item in HazardClass
+    )
+    session.commit()
+
+    stored = session.scalar(
+        select(func.count())
+        .select_from(ChemicalHazardClass)
+        .where(ChemicalHazardClass.chemical_id == chemical_id)
+    )
+    assert stored == len(HazardClass)

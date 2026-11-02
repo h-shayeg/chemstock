@@ -63,6 +63,11 @@ Safety Data Sheet (SDS) or your institution's safety rules. Hazard classes are a
 simplification and are entered by people. A chemical without a classification is
 reported as `review_required`, never as safe.
 
+Once a person has checked a chemical and found nothing that matters for storage
+separation (water, for example), they can give it the class `no_storage_hazard`.
+Only a person can choose it: it is never suggested automatically, and it cannot
+be combined with other classes.
+
 ## Authentication
 
 Every endpoint except `GET /health` and `POST /auth/login` needs an access token.
