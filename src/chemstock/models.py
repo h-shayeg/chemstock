@@ -19,21 +19,38 @@ from chemstock.compatibility import HazardClass
 from chemstock.db import Base
 from chemstock.permissions import Permission, effective_permissions
 from chemstock.roles import Role
+from chemstock.stock import UNITS
 
 _HAZARD_CLASS_VALUES = ", ".join(f"'{hazard.value}'" for hazard in HazardClass)
 _ROLE_VALUES = ", ".join(f"'{role.value}'" for role in Role)
 _PERMISSION_VALUES = ", ".join(f"'{item.value}'" for item in Permission)
+_UNIT_VALUES = ", ".join(f"'{unit}'" for unit in UNITS)
 
 
 class Chemical(Base):
     """A chemical substance in the catalog (not a physical bottle)."""
 
     __tablename__ = "chemicals"
+    __table_args__ = (
+        # A reorder level always comes with its unit, and the other way round.
+        CheckConstraint(
+            "(reorder_level IS NULL) = (reorder_unit IS NULL)",
+            name="reorder_level_with_unit",
+        ),
+        CheckConstraint("reorder_level >= 0", name="reorder_level_non_negative"),
+        CheckConstraint(
+            f"reorder_unit IN ({_UNIT_VALUES})", name="reorder_unit_allowed"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255))
     cas_number: Mapped[str | None] = mapped_column(String(12), unique=True)
     formula: Mapped[str | None] = mapped_column(String(100))
+    # Report the chemical as low on stock when the total of all its bottles
+    # drops to this amount or below. Empty = no low-stock alert.
+    reorder_level: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
+    reorder_unit: Mapped[str | None] = mapped_column(String(10))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -72,7 +89,7 @@ class InventoryItem(Base):
     __tablename__ = "inventory_items"
     __table_args__ = (
         CheckConstraint("quantity >= 0", name="quantity_non_negative"),
-        CheckConstraint("unit IN ('mg', 'g', 'kg', 'mL', 'L')", name="unit_allowed"),
+        CheckConstraint(f"unit IN ({_UNIT_VALUES})", name="unit_allowed"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

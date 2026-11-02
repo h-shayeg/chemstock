@@ -1,3 +1,5 @@
+from collections import defaultdict
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
@@ -6,13 +8,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from chemstock.db import get_session
-from chemstock.models import Chemical, ChemicalHazardClass
+from chemstock.models import Chemical, ChemicalHazardClass, InventoryItem
 from chemstock.schemas import (
     ChemicalCreate,
     ChemicalRead,
     ChemicalUpdate,
     HazardClassesUpdate,
+    LowStockRead,
 )
+from chemstock.stock import Amount, StockedChemical, find_low_stock
 
 router = APIRouter(prefix="/chemicals", tags=["chemicals"])
 
@@ -58,6 +62,53 @@ def list_chemicals(
 ) -> list[Chemical]:
     statement = select(Chemical).order_by(Chemical.id).limit(limit).offset(offset)
     return list(session.scalars(statement))
+
+
+# This route must be declared BEFORE "/{chemical_id}", otherwise FastAPI would
+# treat the word "low-stock" as a chemical id.
+@router.get("/low-stock", response_model=list[LowStockRead])
+def list_low_stock(
+    session: SessionDep,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> list[LowStockRead]:
+    """Chemicals whose bottles add up to their reorder level or less.
+
+    Only chemicals with a `reorder_level` take part. All bottles of a chemical
+    are added up in the unit of its reorder level (`total_quantity`), so 500 g
+    and 0.5 kg count the same. A chemical with no bottles left has a total of 0.
+
+    Mass and volume cannot be added together without the density. Bottles in a
+    unit of the other kind are left out of the total and counted in
+    `uncounted_item_count`, so check those by hand.
+
+    The emptiest chemicals (smallest share of their reorder level) come first.
+    """
+    # One query (a single snapshot of the database): every chemical with a
+    # reorder level, once per bottle, or once with no bottle at all.
+    rows = session.execute(
+        select(
+            Chemical.id,
+            Chemical.name,
+            Chemical.reorder_level,
+            Chemical.reorder_unit,
+            InventoryItem.quantity,
+            InventoryItem.unit,
+        )
+        .outerjoin(InventoryItem, InventoryItem.chemical_id == Chemical.id)
+        .where(Chemical.reorder_level.is_not(None))
+    ).all()
+    levels: dict[int, tuple[str, Decimal, str]] = {}
+    bottles: dict[int, list[Amount]] = defaultdict(list)
+    for row in rows:
+        levels[row.id] = (row.name, row.reorder_level, row.reorder_unit)
+        if row.quantity is not None:
+            bottles[row.id].append(Amount(row.quantity, row.unit))
+    reports = find_low_stock(
+        StockedChemical(chemical_id, name, level, unit, tuple(bottles[chemical_id]))
+        for chemical_id, (name, level, unit) in levels.items()
+    )
+    return [LowStockRead(**vars(report)) for report in reports[offset : offset + limit]]
 
 
 @router.get("/{chemical_id}", response_model=ChemicalRead)

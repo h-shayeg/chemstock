@@ -54,7 +54,7 @@ tests/           pytest tests
 - [ ] PubChem integration for hazard (GHS) data, with caching
 - [x] Storage-compatibility checks (hazard classes, rules, `/storage-conflicts`)
 - [x] Expiry alerts: bottles expiring soon or already expired
-- [ ] Low-stock alerts
+- [x] Low-stock alerts: chemicals at or below their reorder level
 
 ## Safety note
 
@@ -67,6 +67,20 @@ Once a person has checked a chemical and found nothing that matters for storage
 separation (water, for example), they can give it the class `no_storage_hazard`.
 Only a person can choose it: it is never suggested automatically, and it cannot
 be combined with other classes.
+
+## Low-stock alerts
+
+Give a chemical a reorder level, for example 1 L of acetone, with
+`reorder_level` and `reorder_unit` (in `POST /chemicals`, or both together in
+`PATCH /chemicals/{id}`; both `null` removes it). `GET /chemicals/low-stock` then
+lists every chemical whose bottles add up to that amount or less, the emptiest
+first. A chemical with no bottles left has a total of 0.
+
+Bottles are converted to the unit of the reorder level, so 300 mL and 0.2 L add up
+to 0.5 L. Mass and volume cannot be added without the density, so a bottle in a
+unit of the other kind (grams for a level in litres) is left out of the total and
+counted in `uncounted_item_count`. Such a bottle can cause a false alarm, but it
+never hides a real one.
 
 ## Authentication
 

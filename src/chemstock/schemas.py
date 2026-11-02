@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -15,11 +15,22 @@ from chemstock.compatibility import EXCLUSIVE_CLASSES, HazardClass
 from chemstock.permissions import Permission
 from chemstock.roles import Role
 
+Unit = Literal["mg", "g", "kg", "mL", "L"]
+
+ReorderLevel = Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=3)]
+
 
 def _check_cas(value: str | None) -> str | None:
     if value is not None and not is_valid_cas(value):
         raise ValueError("invalid CAS Registry Number")
     return value
+
+
+def _check_reorder_pair(level: Decimal | None, unit: str | None) -> None:
+    if (level is None) != (unit is None):
+        raise ValueError(
+            "reorder_level and reorder_unit go together: give both, or both null"
+        )
 
 
 class ChemicalCreate(BaseModel):
@@ -30,11 +41,18 @@ class ChemicalCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     cas_number: str | None = Field(default=None, max_length=12)
     formula: str | None = Field(default=None, max_length=100)
+    reorder_level: ReorderLevel | None = None
+    reorder_unit: Unit | None = None
 
     @field_validator("cas_number")
     @classmethod
     def validate_cas_number(cls, value: str | None) -> str | None:
         return _check_cas(value)
+
+    @model_validator(mode="after")
+    def check_reorder_pair(self) -> Self:
+        _check_reorder_pair(self.reorder_level, self.reorder_unit)
+        return self
 
 
 class ChemicalUpdate(BaseModel):
@@ -45,6 +63,9 @@ class ChemicalUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     cas_number: str | None = Field(default=None, max_length=12)
     formula: str | None = Field(default=None, max_length=100)
+    # Sent together; both null removes the low-stock alert.
+    reorder_level: ReorderLevel | None = None
+    reorder_unit: Unit | None = None
 
     @field_validator("name")
     @classmethod
@@ -58,6 +79,14 @@ class ChemicalUpdate(BaseModel):
     def validate_cas_number(cls, value: str | None) -> str | None:
         return _check_cas(value)
 
+    @model_validator(mode="after")
+    def check_reorder_pair(self) -> Self:
+        sent = {"reorder_level", "reorder_unit"} & self.model_fields_set
+        if len(sent) == 1:
+            raise ValueError("send reorder_level and reorder_unit together")
+        _check_reorder_pair(self.reorder_level, self.reorder_unit)
+        return self
+
 
 class ChemicalRead(BaseModel):
     """Data the API returns for a chemical."""
@@ -69,10 +98,22 @@ class ChemicalRead(BaseModel):
     cas_number: str | None
     formula: str | None
     hazard_classes: list[HazardClass]
+    reorder_level: Decimal | None
+    reorder_unit: str | None
     created_at: datetime
 
 
-Unit = Literal["mg", "g", "kg", "mL", "L"]
+class LowStockRead(BaseModel):
+    """A chemical whose bottles add up to its reorder level or less."""
+
+    chemical_id: int
+    chemical_name: str
+    reorder_level: Decimal
+    unit: str  # unit of the reorder level and of the total
+    total_quantity: Decimal
+    item_count: int  # bottles added up
+    # Bottles in a unit of the other kind (mass vs volume): not in the total.
+    uncounted_item_count: int
 
 
 class InventoryItemCreate(BaseModel):
