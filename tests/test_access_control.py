@@ -32,6 +32,7 @@ USER_MANAGEMENT = {
 ENDPOINTS: list[tuple[str, str, dict[str, object] | None, Role]] = [
     ("GET", "/chemicals", None, VIEWER),
     ("POST", "/chemicals", {"name": "Water"}, MEMBER),
+    ("GET", "/chemicals/low-stock", None, VIEWER),
     ("GET", "/chemicals/{chemical_id}", None, VIEWER),
     ("PATCH", "/chemicals/{chemical_id}", {"name": "Aqua"}, MEMBER),
     ("DELETE", "/chemicals/{chemical_id}", None, MEMBER),
