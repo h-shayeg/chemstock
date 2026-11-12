@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <span class="logo">C</span>
+      <div>
+        <div class="brand-name">ChemStock</div>
+        <div class="brand-sub">انبار مواد شیمیایی</div>
+      </div>
+    </div>
+    <nav class="menu">
+      <a href="/ui" class="{{ 'on' if active == 'dashboard' }}">داشبورد</a>
+    </nav>
+    <div class="who">
+      <div class="who-name"><bdi>{{ user.username }}</bdi></div>
+      <div class="who-role">{{ role_label }}</div>
+      <form method="post" action="/ui/logout">
+        <button type="submit" class="btn btn-ghost">خروج</button>
+      </form>
+    </div>
+  </aside>
+  <main class="main">
+    <header class="top">
+      <h1>{% block heading %}{% endblock %}</h1>
+      <span class="today">{{ today|jalali_long }}</span>
+    </header>
+    <div class="content">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+{% endblock %}

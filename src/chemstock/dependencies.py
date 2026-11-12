@@ -34,25 +34,37 @@ def _forbidden() -> HTTPException:
     )
 
 
+def user_from_token(token: str, session: Session) -> User | None:
+    """The active user a token belongs to, or None. The database has the final word.
+
+    Shared by the API (token in the Authorization header) and the web pages
+    (token in a cookie, see chemstock.web).
+    """
+    claims = read_access_token(token, get_settings().secret_key.get_secret_value())
+    if claims is None:
+        return None
+    subject = claims.subject
+    if not (subject.isascii() and subject.isdecimal()):
+        return None
+    user_id = int(subject)
+    if not 1 <= user_id <= MAX_USER_ID:
+        return None
+    user = session.get(User, user_id)
+    if user is None or not user.is_active:
+        return None
+    if user.token_version != claims.version:
+        return None  # the password changed after this token
+    return user
+
+
 def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
     session: Annotated[Session, Depends(get_session)],
 ) -> User:
-    """The active user the token belongs to. The database has the final word."""
-    claims = read_access_token(token, get_settings().secret_key.get_secret_value())
-    if claims is None:
+    """The active user the token belongs to (see user_from_token)."""
+    user = user_from_token(token, session)
+    if user is None:
         raise _unauthorized()
-    subject = claims.subject
-    if not (subject.isascii() and subject.isdecimal()):
-        raise _unauthorized()
-    user_id = int(subject)
-    if not 1 <= user_id <= MAX_USER_ID:
-        raise _unauthorized()
-    user = session.get(User, user_id)
-    if user is None or not user.is_active:
-        raise _unauthorized()
-    if user.token_version != claims.version:
-        raise _unauthorized()  # the password changed after this token
     return user
 
 

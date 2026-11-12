@@ -1,0 +1,226 @@
+/* ChemStock web pages. Right-to-left, Persian, no outside resources. */
+
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("fonts/Vazirmatn-UI-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("fonts/Vazirmatn-UI-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
+:root {
+  --side: #17323b;
+  --side-text: #cfe0e4;
+  --accent: #2a9d8f;
+  --accent-dark: #1f7a6f;
+  --page: #f4f6f8;
+  --card: #ffffff;
+  --line: #e3e7eb;
+  --text: #1d2733;
+  --muted: #5b6b7a;
+  --bad: #b42318;
+  --bad-bg: #fbe4e1;
+  --warn: #9a6206;
+  --warn-bg: #fdf0d9;
+  --ok: #17714f;
+  --ok-bg: #e3f4ee;
+  --rev: #3f4a9b;
+  --rev-bg: #e8eaf6;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  font-family: "Vazirmatn", Tahoma, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+  background: var(--page);
+}
+h1, h2 { margin: 0; line-height: 1.4; }
+
+/* ---------- layout ---------- */
+.shell { display: flex; min-height: 100vh; }
+.side {
+  width: 230px;
+  flex-shrink: 0;
+  background: var(--side);
+  color: var(--side-text);
+  padding: 22px 16px;
+  display: flex;
+  flex-direction: column;
+}
+.brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+.logo {
+  width: 38px; height: 38px; border-radius: 9px;
+  background: var(--accent); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 19px;
+}
+.brand-name { color: #fff; font-weight: 700; font-size: 16px; direction: ltr; text-align: right; }
+.brand-sub { font-size: 12px; color: #9fbac1; }
+.brand-dark .brand-name { color: var(--side); }
+.brand-dark .brand-sub { color: var(--muted); }
+
+.menu a {
+  display: block;
+  padding: 9px 12px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  color: var(--side-text);
+  text-decoration: none;
+}
+.menu a:hover { background: rgba(255, 255, 255, 0.08); }
+.menu a.on { background: var(--accent); color: #fff; font-weight: 700; }
+
+.who { margin-top: auto; border-top: 1px solid rgba(255, 255, 255, 0.12); padding-top: 14px; }
+.who-name { color: #fff; font-weight: 700; }
+.who-role { font-size: 12.5px; color: #9fbac1; margin-bottom: 10px; }
+
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.top {
+  height: 64px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px;
+}
+.top h1 { font-size: 21px; }
+.today { color: var(--muted); font-size: 14px; }
+.content { padding: 22px 28px; }
+
+/* ---------- buttons and forms ---------- */
+.btn {
+  font: inherit;
+  border-radius: 9px;
+  padding: 8px 18px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-dark); }
+.btn-ghost {
+  background: transparent;
+  color: var(--side-text);
+  border-color: rgba(255, 255, 255, 0.25);
+  width: 100%;
+}
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.08); }
+
+.form label { display: block; font-size: 14px; color: var(--muted); margin: 14px 0 6px; }
+.form input {
+  font: inherit;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #cfd6dd;
+  border-radius: 9px;
+  background: #fff;
+}
+.form input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+.form .btn { width: 100%; margin-top: 22px; }
+
+/* ---------- login ---------- */
+.login-body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 28px 30px 30px;
+}
+.login-card h1 { font-size: 19px; margin-bottom: 6px; }
+.alert {
+  background: var(--bad-bg);
+  color: var(--bad);
+  border-radius: 9px;
+  padding: 9px 12px;
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+
+/* ---------- dashboard ---------- */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--accent);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.card-label { font-size: 14px; color: var(--muted); }
+.card-value { font-size: 28px; font-weight: 700; line-height: 1.5; }
+.card-sub { font-size: 12px; color: var(--muted); }
+.card-bad { border-top-color: var(--bad); }
+.card-bad .card-value { color: var(--bad); }
+.card-warn { border-top-color: #d68910; }
+.card-warn .card-value { color: var(--warn); }
+.card-rev { border-top-color: #5c6bc0; }
+.card-rev .card-value { color: var(--rev); }
+.card-ok { border-top-color: #3aa57a; }
+.card-ok .card-value { color: var(--ok); }
+
+.panels { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; }
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px;
+  min-width: 0;
+}
+.panel h2 { font-size: 16px; margin-bottom: 10px; }
+
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th {
+  text-align: right;
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.table td { padding: 8px; border-bottom: 1px solid #eef1f4; }
+.table tr:last-child td { border-bottom: 0; }
+
+.alerts { list-style: none; margin: 0; padding: 0; }
+.alerts li { padding: 9px 0; border-bottom: 1px solid #eef1f4; }
+.alerts li:last-child { border-bottom: 0; }
+.alert-title { font-weight: 700; font-size: 14.5px; }
+.alert-meta { font-size: 13px; color: var(--muted); display: flex; gap: 10px; align-items: center; }
+
+.tag {
+  display: inline-block;
+  padding: 1px 10px;
+  border-radius: 20px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.tag-bad { background: var(--bad-bg); color: var(--bad); }
+.tag-warn { background: var(--warn-bg); color: var(--warn); }
+.tag-ok { background: var(--ok-bg); color: var(--ok); }
+.tag-rev { background: var(--rev-bg); color: var(--rev); }
+
+.empty { color: var(--muted); font-size: 14px; margin: 6px 0; }
+.note { color: var(--muted); font-size: 12.5px; margin-top: 18px; }
+
+/* ---------- small screens and printing ---------- */
+@media (max-width: 900px) {
+  .shell { flex-direction: column; }
+  .side { width: auto; }
+  .who { margin-top: 12px; }
+  .panels { grid-template-columns: 1fr; }
+}
+@media print {
+  .side { display: none; }
+  body { background: #fff; }
+}

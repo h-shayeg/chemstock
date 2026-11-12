@@ -1,6 +1,4 @@
-from collections import defaultdict
 from datetime import datetime, timedelta
-from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
@@ -13,8 +11,9 @@ from chemstock.config import get_settings
 from chemstock.db import get_session
 from chemstock.ghs import suggest_hazard_classes
 from chemstock.ghs_cache import get_ghs
-from chemstock.models import Chemical, ChemicalHazardClass, InventoryItem
+from chemstock.models import Chemical, ChemicalHazardClass
 from chemstock.pubchem import PubChemClient, PubChemUnavailable, get_pubchem_client
+from chemstock.reports import load_low_stock
 from chemstock.schemas import (
     ChemicalCreate,
     ChemicalRead,
@@ -25,7 +24,6 @@ from chemstock.schemas import (
     LowStockRead,
     PictogramRead,
 )
-from chemstock.stock import Amount, StockedChemical, find_low_stock
 
 router = APIRouter(prefix="/chemicals", tags=["chemicals"])
 
@@ -95,30 +93,7 @@ def list_low_stock(
 
     The emptiest chemicals (smallest share of their reorder level) come first.
     """
-    # One query (a single snapshot of the database): every chemical with a
-    # reorder level, once per bottle, or once with no bottle at all.
-    rows = session.execute(
-        select(
-            Chemical.id,
-            Chemical.name,
-            Chemical.reorder_level,
-            Chemical.reorder_unit,
-            InventoryItem.quantity,
-            InventoryItem.unit,
-        )
-        .outerjoin(InventoryItem, InventoryItem.chemical_id == Chemical.id)
-        .where(Chemical.reorder_level.is_not(None))
-    ).all()
-    levels: dict[int, tuple[str, Decimal, str]] = {}
-    bottles: dict[int, list[Amount]] = defaultdict(list)
-    for row in rows:
-        levels[row.id] = (row.name, row.reorder_level, row.reorder_unit)
-        if row.quantity is not None:
-            bottles[row.id].append(Amount(row.quantity, row.unit))
-    reports = find_low_stock(
-        StockedChemical(chemical_id, name, level, unit, tuple(bottles[chemical_id]))
-        for chemical_id, (name, level, unit) in levels.items()
-    )
+    reports = load_low_stock(session)
     return [LowStockRead(**vars(report)) for report in reports[offset : offset + limit]]
 
 

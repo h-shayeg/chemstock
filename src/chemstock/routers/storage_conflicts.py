@@ -1,13 +1,12 @@
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from chemstock.db import get_session
-from chemstock.models import Chemical, InventoryItem
+from chemstock.reports import load_storage_conflicts
 from chemstock.schemas import ConflictItem, ConflictReason, StorageConflictRead
-from chemstock.storage import Bottle, StorageConflict, find_storage_conflicts
+from chemstock.storage import Bottle, StorageConflict
 
 router = APIRouter(prefix="/storage-conflicts", tags=["storage"])
 
@@ -62,22 +61,7 @@ def list_storage_conflicts(
     Most urgent first. This is an assistive tool, not a replacement for the
     Safety Data Sheet (SDS).
     """
-    rows = session.execute(
-        select(InventoryItem, Chemical)
-        .join(Chemical, Chemical.id == InventoryItem.chemical_id)
-        .where(InventoryItem.location.is_not(None))
-    ).all()
-    bottles = [
-        Bottle(
-            item_id=item.id,
-            chemical_id=chemical.id,
-            chemical_name=chemical.name,
-            location=item.location,
-            hazard_classes=tuple(chemical.hazard_classes),
-        )
-        for item, chemical in rows
-    ]
-    conflicts = find_storage_conflicts(bottles)
+    conflicts = load_storage_conflicts(session)
     if status_filter is not None:
         conflicts = [c for c in conflicts if c.status.value == status_filter]
     return [_to_schema(conflict) for conflict in conflicts[offset : offset + limit]]
