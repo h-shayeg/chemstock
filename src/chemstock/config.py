@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     # Signs access tokens. Generate one with: openssl rand -hex 32
     secret_key: SecretStr
     access_token_expire_minutes: int = Field(default=30, ge=1, le=1440)
+    # How long a login on the web pages lasts (one working day by default).
+    web_session_hours: int = Field(default=8, ge=1, le=24)
 
     # Slowing down password guessing (see chemstock.throttle).
     login_max_attempts_per_username: int = Field(default=5, ge=1, le=100)

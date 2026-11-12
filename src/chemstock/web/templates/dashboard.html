@@ -1,0 +1,85 @@
+{% extends "layout.html" %}
+{% block title %}داشبورد{% endblock %}
+{% block heading %}داشبورد{% endblock %}
+
+{% macro card(label, value, sub, tone) -%}
+  <div class="card card-{{ 'ok' if value == 0 and tone != 'plain' else tone }}">
+    <div class="card-label">{{ label }}</div>
+    <div class="card-value">{{ value|fa_number }}</div>
+    <div class="card-sub">{{ sub }}</div>
+  </div>
+{%- endmacro %}
+
+{% block content %}
+<section class="cards">
+  {{ card("مواد ثبت‌شده", summary.chemical_count, "نوع ماده", "plain") }}
+  {{ card("ظرف‌ها", summary.item_count, "بطری، قوطی و بشکه", "plain") }}
+  {{ card("تاریخ‌گذشته", summary.expired_count, "ظرف", "bad") }}
+  {{ card("نزدیک انقضا", summary.expiring_soon_count, "ظرف، تا " ~ (window_days|fa) ~ " روز آینده", "warn") }}
+  {{ card("رو به اتمام", summary.low_stock_count, "ماده", "warn") }}
+  {{ card("نگهداری ناسازگار", summary.conflict_count, "جفت ظرف کنار هم", "bad") }}
+  {{ card("نیاز به بررسی", summary.review_count, "جفت ظرف با اطلاعات خطر ناقص", "rev") }}
+</section>
+
+<section class="panels">
+  <div class="panel">
+    <h2>نزدیک‌ترین تاریخ‌های انقضا</h2>
+    {% if summary.soonest_expiring %}
+    <table class="table">
+      <thead>
+        <tr><th>ماده</th><th>محل نگهداری</th><th>تاریخ انقضا</th><th>وضعیت</th></tr>
+      </thead>
+      <tbody>
+        {% for bottle in summary.soonest_expiring %}
+        <tr>
+          <td><bdi>{{ bottle.chemical_name }}</bdi></td>
+          <td>{% if bottle.location %}<bdi>{{ bottle.location }}</bdi>{% else %}—{% endif %}</td>
+          <td>{{ bottle.expiry_date|jalali }}</td>
+          <td>
+            {% if bottle.days_left < 0 %}
+              <span class="tag tag-bad">{{ (0 - bottle.days_left)|fa }} روز گذشته</span>
+            {% elif bottle.days_left == 0 %}
+              <span class="tag tag-bad">امروز</span>
+            {% else %}
+              <span class="tag tag-warn">{{ bottle.days_left|fa }} روز مانده</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">هیچ ظرفی تا {{ window_days|fa }} روز آینده منقضی نمی‌شود.</p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>مهم‌ترین هشدارهای نگهداری</h2>
+    {% if summary.top_conflicts %}
+    <ul class="alerts">
+      {% for conflict in summary.top_conflicts %}
+      <li>
+        <div class="alert-title">
+          <bdi>{{ conflict.first.chemical_name }}</bdi> و <bdi>{{ conflict.second.chemical_name }}</bdi>
+        </div>
+        <div class="alert-meta">
+          <bdi>{{ conflict.location }}</bdi>
+          {% if conflict.status.value == "review_required" %}
+            <span class="tag tag-rev">نیاز به بررسی</span>
+          {% elif conflict.severity == 1 %}
+            <span class="tag tag-bad">خطر واکنش</span>
+          {% else %}
+            <span class="tag tag-warn">بهتر است جدا باشند</span>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty">هشداری نیست.</p>
+    {% endif %}
+  </div>
+</section>
+
+<p class="note">این سامانه ابزاری کمکی است و جای برگه‌ی اطلاعات ایمنی مواد (SDS) را نمی‌گیرد.</p>
+{% endblock %}

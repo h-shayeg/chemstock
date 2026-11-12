@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}ورود{% endblock %}
+{% block body_class %}login-body{% endblock %}
+{% block body %}
+<main class="login-card">
+  <div class="brand brand-dark">
+    <span class="logo">C</span>
+    <div>
+      <div class="brand-name">ChemStock</div>
+      <div class="brand-sub">انبار مواد شیمیایی</div>
+    </div>
+  </div>
+  <h1>ورود به سامانه</h1>
+  {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/ui/login" class="form">
+    <label for="username">نام کاربری</label>
+    <input id="username" name="username" value="{{ username }}"
+           autocomplete="username" dir="ltr" required autofocus>
+    <label for="password">رمز عبور</label>
+    <input id="password" name="password" type="password"
+           autocomplete="current-password" dir="ltr" required>
+    <button type="submit" class="btn btn-primary">ورود</button>
+  </form>
+</main>
+{% endblock %}

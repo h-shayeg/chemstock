@@ -1,7 +1,8 @@
 from fastapi import Depends, FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from chemstock.dependencies import require_access
 from chemstock.routers import (
@@ -12,6 +13,7 @@ from chemstock.routers import (
     storage_conflicts,
     users,
 )
+from chemstock.web import routes as web
 
 app = FastAPI(
     title="ChemStock",
@@ -47,6 +49,24 @@ app.include_router(chemicals.router, dependencies=protected)
 app.include_router(hazard_classes.router, dependencies=protected)
 app.include_router(inventory_items.router, dependencies=protected)
 app.include_router(storage_conflicts.router, dependencies=protected)
+
+
+# The Persian web pages (see chemstock.web). Their style sheet and font are
+# served from here too, so the pages work without internet access.
+app.mount("/ui/static", StaticFiles(directory=web.STATIC_DIR), name="static")
+app.include_router(web.router)
+
+
+@app.exception_handler(web.LoginRequired)
+async def login_required_handler(
+    request: Request, exc: web.LoginRequired
+) -> RedirectResponse:
+    return web.login_redirect()
+
+
+@app.get("/", include_in_schema=False)
+def home() -> RedirectResponse:
+    return RedirectResponse(web.HOME_PATH)
 
 
 @app.get("/health", tags=["system"])
